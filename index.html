@@ -78,9 +78,9 @@
         .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
-<body class="text-slate-800 antialiased h-screen w-screen">
+<body class="text-slate-800 antialiased h-[100dvh] w-screen overflow-hidden">
 
-    <div id="root" class="w-full h-full max-w-md bg-white shadow-2xl overflow-y-auto relative flex flex-col mx-auto border-x-4 border-white/50"></div>
+    <div id="root" class="w-full h-full max-w-[400px] bg-white shadow-2xl relative flex flex-col mx-auto border-x border-white/50 overflow-hidden"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
@@ -117,20 +117,20 @@
         const Bead = ({ type, isActive, index, onClick, beadTheme }) => {
             let transformY = 0;
             if (type === 'top') {
-                transformY = isActive ? 40 : 8; 
+                transformY = isActive ? 28 : 4; 
             } else {
                 if (isActive) {
-                    transformY = 4 + (index - 1) * 26; 
+                    transformY = 2 + (index - 1) * 20; 
                 } else {
-                    transformY = 132 - 4 - (4 - index) * 26 - 26; 
+                    transformY = 78 - (4 - index) * 20; 
                 }
             }
 
             return (
                 <div 
                     onPointerDown={(e) => { e.preventDefault(); onClick(); }}
-                    className={`absolute w-12 h-[26px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
-                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-24px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
+                    className={`absolute w-10 h-[20px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
+                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-20px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
                 />
             );
         };
@@ -150,13 +150,13 @@
             };
 
             return (
-                <div className={`flex flex-col items-center w-14 h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
-                    <div className={`absolute top-0 bottom-0 w-2 rounded-full z-0 left-1/2 -ml-[4px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
-                    <div className="relative w-full h-[68px]">
+                <div className={`flex flex-col items-center w-11 h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
+                    <div className={`absolute top-0 bottom-0 w-1.5 rounded-full z-0 left-1/2 -ml-[3px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
+                    <div className="relative w-full h-[50px]">
                         <Bead type="top" isActive={topActive} onClick={handleTopClick} beadTheme={themeConfig.bead} />
                     </div>
-                    <div className="w-full h-[20px]"></div>
-                    <div className="relative w-full h-[132px]">
+                    <div className="w-full h-[12px]"></div>
+                    <div className="relative w-full h-[100px]">
                         {[1, 2, 3, 4].map(idx => (
                             <Bead key={`bottom-${idx}`} type="bottom" index={idx} isActive={idx <= bottomActiveCount} onClick={() => handleBottomClick(idx)} beadTheme={themeConfig.bead} />
                         ))}
@@ -178,9 +178,9 @@
             };
 
             return (
-                <div className={`w-full p-4 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
-                    <div className={`absolute top-[89px] left-0 right-0 h-[10px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
-                    <div className="flex justify-between items-center w-full px-1">
+                <div className={`w-full p-2.5 rounded-[1.5rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
+                    <div className={`absolute top-[62px] left-0 right-0 h-[8px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
+                    <div className="flex justify-between items-center w-full px-0.5">
                         {values.map((val, idx) => (
                             <AbacusColumn key={idx} value={val} onChange={(newVal) => handleColChange(idx, newVal)} themeConfig={themeConfig} isHighlighted={highlightCols.includes(idx)} isReadonly={isReadonly} />
                         ))}
@@ -213,67 +213,67 @@
 
             return (
                 <div className="flex flex-col h-full bg-gradient-to-b from-transparent to-white/50">
-                    <div className="text-center mt-10 mb-6 px-4 animate-float">
-                        <div className="inline-block p-4 px-8 bg-white rounded-full shadow-lg border-4 border-sky-100 transform -rotate-2">
-                            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 tracking-wide">SOROBAN</h1>
+                    <div className="text-center mt-6 mb-4 px-4 animate-float">
+                        <div className="inline-block p-3 px-6 bg-white rounded-full shadow-md border-4 border-sky-100 transform -rotate-2">
+                            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 tracking-wide">SOROBAN</h1>
                         </div>
-                        <p className="text-sky-600 font-bold mt-3 text-lg bg-white/60 inline-block px-4 py-1 rounded-full backdrop-blur-sm">Ayo Belajar Sempoa! ✨</p>
+                        <p className="text-sky-600 font-bold mt-2 text-sm bg-white/60 inline-block px-3 py-1 rounded-full backdrop-blur-sm">Ayo Belajar Sempoa! ✨</p>
                     </div>
 
-                    <div className="flex-1 space-y-5 overflow-y-auto px-5 pb-6">
-                        <div className="glass-card p-5 rounded-[2rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-4 text-lg"><span className="bg-sky-100 text-sky-600 p-1.5 rounded-lg">⚙️</span> Tipe Operasi</label>
-                            <div className="grid grid-cols-2 gap-3">
+                    <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-sky-100 text-sky-600 p-1 rounded-lg">⚙️</span> Tipe Operasi</label>
+                            <div className="grid grid-cols-2 gap-2">
                                 {[{ id: '+', label: 'Tambah (+)' }, { id: '-', label: 'Kurang (-)' }, { id: '*', label: 'Kali (×)' }, { id: '/', label: 'Bagi (÷)' }, { id: 'mix+-', label: 'Campur (+ -)' }, { id: 'mixAll', label: 'Semua (✨)' }].map(op => (
-                                    <button key={op.id} onClick={() => setOperation(op.id)} className={`py-3 px-2 rounded-2xl font-bold transition-all btn-push ${operation === op.id ? 'bg-sky-500 text-white shadow-[0_4px_0_#0284c7]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>{op.label}</button>
+                                    <button key={op.id} onClick={() => setOperation(op.id)} className={`py-2 px-1 rounded-xl font-bold text-sm transition-all btn-push ${operation === op.id ? 'bg-sky-500 text-white shadow-[0_3px_0_#0284c7]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>{op.label}</button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="glass-card p-5 rounded-[2rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-4 text-lg"><span className="bg-amber-100 text-amber-600 p-1.5 rounded-lg">🔢</span> Nilai Maksimal</label>
-                            <div className="grid grid-cols-3 gap-3">
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-amber-100 text-amber-600 p-1 rounded-lg">🔢</span> Nilai Maksimal</label>
+                            <div className="grid grid-cols-3 gap-2">
                                 {[{ id: 'satuan', label: 'Satuan', val: '1-9' }, { id: 'puluhan', label: 'Puluhan', val: '10-99' }, { id: 'ratusan', label: 'Ratusan', val: 'Ratus' }].map(pv => (
-                                    <button key={pv.id} onClick={() => setPlaceValue(pv.id)} className={`py-3 flex flex-col items-center justify-center rounded-2xl transition-all btn-push ${placeValue === pv.id ? 'bg-amber-400 text-amber-900 shadow-[0_4px_0_#d97706]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>
-                                        <span className="font-extrabold text-sm">{pv.label}</span>
-                                        <span className="text-xs opacity-70 font-semibold">{pv.val}</span>
+                                    <button key={pv.id} onClick={() => setPlaceValue(pv.id)} className={`py-2 flex flex-col items-center justify-center rounded-xl transition-all btn-push ${placeValue === pv.id ? 'bg-amber-400 text-amber-900 shadow-[0_3px_0_#d97706]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>
+                                        <span className="font-extrabold text-xs">{pv.label}</span>
+                                        <span className="text-[10px] opacity-70 font-semibold">{pv.val}</span>
                                     </button>
                                 ))}
                             </div>
                         </div>
 
                         {['+', '-', 'mix+-'].includes(operation) && (
-                            <div className="glass-card p-5 rounded-[2rem] animate-pop">
-                                <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-4 text-lg"><span className="bg-rose-100 text-rose-600 p-1.5 rounded-lg">📊</span> Jumlah Baris</label>
+                            <div className="glass-card p-4 rounded-[1.5rem] animate-pop">
+                                <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-rose-100 text-rose-600 p-1 rounded-lg">📊</span> Jumlah Baris</label>
                                 <div className="flex justify-between gap-2">
                                     {[2, 3, 4, 5].map(num => (
-                                        <button key={num} onClick={() => setRowCount(num)} className={`flex-1 py-3 rounded-2xl font-black text-xl transition-all btn-push ${rowCount === num ? 'bg-rose-400 text-white shadow-[0_4px_0_#e11d48]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>{num}</button>
+                                        <button key={num} onClick={() => setRowCount(num)} className={`flex-1 py-2 rounded-xl font-black text-lg transition-all btn-push ${rowCount === num ? 'bg-rose-400 text-white shadow-[0_3px_0_#e11d48]' : 'bg-slate-50 text-slate-600 border-2 border-slate-100 hover:bg-slate-100'}`}>{num}</button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        <div className="glass-card p-5 rounded-[2rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-4 text-lg"><span className="bg-violet-100 text-violet-600 p-1.5 rounded-lg">🎨</span> Tampilan</label>
-                            <div className="mb-4">
-                                <span className="text-sm font-bold text-slate-500 mb-2 block">Warna Biji:</span>
-                                <div className="flex gap-3 overflow-x-auto py-3 px-2">
-                                    {BEAD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('bead', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-full btn-push transition-all ${bt.classes} ${theme.bead === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_3px_0_rgba(0,0,0,0.2)] opacity-80'}`} title={bt.label} /> )}
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-2 text-base"><span className="bg-violet-100 text-violet-600 p-1 rounded-lg">🎨</span> Tampilan</label>
+                            <div className="mb-2">
+                                <span className="text-xs font-bold text-slate-500 mb-1 block">Warna Biji:</span>
+                                <div className="flex gap-2 overflow-x-auto py-2 px-1">
+                                    {BEAD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('bead', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-full btn-push transition-all ${bt.classes} ${theme.bead === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-110 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.2)] opacity-80'}`} title={bt.label} /> )}
                                 </div>
                             </div>
                             <div>
-                                <span className="text-sm font-bold text-slate-500 mb-2 block">Warna Papan:</span>
-                                <div className="flex gap-3 overflow-x-auto py-3 px-2">
-                                    {BOARD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('board', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-xl btn-push transition-all ${bt.classes} ${theme.board === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_3px_0_rgba(0,0,0,0.3)] opacity-80'}`} title={bt.label} /> )}
+                                <span className="text-xs font-bold text-slate-500 mb-1 block">Warna Papan:</span>
+                                <div className="flex gap-2 overflow-x-auto py-2 px-1">
+                                    {BOARD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('board', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-lg btn-push transition-all ${bt.classes} ${theme.board === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-110 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.3)] opacity-80'}`} title={bt.label} /> )}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-5 bg-white/80 backdrop-blur-md border-t-2 border-white rounded-t-[2rem] flex gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.03)] z-10">
-                        <button onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-4 rounded-[1.5rem] font-bold shadow-[0_4px_0_#cbd5e1] btn-push flex items-center justify-center"><IconHistory /></button>
-                        <button onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-4 rounded-[1.5rem] font-bold shadow-[0_4px_0_#b45309] btn-push flex items-center justify-center"><IconBook /></button>
-                        <button onClick={() => onStart({ operation, placeValue, rowCount })} className="flex-1 bg-emerald-400 text-white py-4 rounded-[1.5rem] font-black text-xl shadow-[0_5px_0_#059669] btn-push flex justify-center items-center gap-2"><IconPlay /> MULAI</button>
+                    <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white rounded-t-[1.5rem] flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] z-10">
+                        <button onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold shadow-[0_3px_0_#cbd5e1] btn-push flex items-center justify-center"><IconHistory /></button>
+                        <button onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-3 rounded-xl font-bold shadow-[0_3px_0_#b45309] btn-push flex items-center justify-center"><IconBook /></button>
+                        <button onClick={() => onStart({ operation, placeValue, rowCount })} className="flex-1 bg-emerald-400 text-white py-3 rounded-xl font-black text-lg shadow-[0_4px_0_#059669] btn-push flex justify-center items-center gap-2"><IconPlay /> MULAI</button>
                     </div>
                 </div>
             );
@@ -365,42 +365,42 @@
 
             return (
                 <div className="flex flex-col h-full bg-gradient-to-b from-transparent to-white/50">
-                    <div className="flex justify-between items-center p-5 bg-white/80 backdrop-blur-md shadow-sm border-b-2 border-white z-10">
-                        <button onClick={onBack} className="p-3 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_3px_0_#cbd5e1]"><IconBack /></button>
-                        <div className="flex items-center gap-2 font-black text-slate-700 bg-white border-2 border-slate-100 px-4 py-2 rounded-2xl shadow-sm"><span className="text-amber-500"><IconClock /></span> {formatTime(time)}</div>
-                        <div className="w-12"></div> 
+                    <div className="flex justify-between items-center p-3 bg-white/80 backdrop-blur-md shadow-sm border-b border-white z-10">
+                        <button onClick={onBack} className="p-2 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
+                        <div className="flex items-center gap-2 font-black text-slate-700 bg-white border border-slate-100 px-3 py-1.5 rounded-xl shadow-sm text-sm"><span className="text-amber-500"><IconClock /></span> {formatTime(time)}</div>
+                        <div className="w-10"></div> 
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center p-6">
-                        <div className="bg-slate-800 p-8 rounded-[3rem] shadow-[0_15px_35px_rgba(0,0,0,0.2)] border-8 border-slate-700 w-full max-w-[300px] relative">
-                            <div className="absolute -top-4 left-10 w-4 h-8 bg-amber-400 rounded-full shadow-md"></div>
-                            <div className="absolute -top-4 right-10 w-4 h-8 bg-amber-400 rounded-full shadow-md"></div>
-                            <div className="flex flex-col items-end text-5xl font-black text-white font-mono tracking-wider space-y-3">
+                    <div className="flex-1 flex flex-col items-center justify-center p-4">
+                        <div className="bg-slate-800 p-6 rounded-[2rem] shadow-lg border-4 border-slate-700 w-full max-w-[260px] relative">
+                            <div className="absolute -top-3 left-8 w-3 h-6 bg-amber-400 rounded-full shadow-sm"></div>
+                            <div className="absolute -top-3 right-8 w-3 h-6 bg-amber-400 rounded-full shadow-sm"></div>
+                            <div className="flex flex-col items-end text-4xl font-black text-white font-mono tracking-wider space-y-2">
                                 {question.rows.map((row, idx) => (
-                                    <div key={idx} className={`${idx === question.rows.length - 1 ? 'border-b-4 border-slate-500 pb-3 w-full text-right' : ''}`}>{row}</div>
+                                    <div key={idx} className={`${idx === question.rows.length - 1 ? 'border-b-2 border-slate-500 pb-2 w-full text-right' : ''}`}>{row}</div>
                                 ))}
                             </div>
-                            <div className="mt-8 h-12 flex items-center justify-center bg-slate-900/50 rounded-2xl">
-                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-3xl animate-pop drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
-                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-xl animate-pop drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">COBA LAGI YA 😅</div>}
+                            <div className="mt-4 h-10 flex items-center justify-center bg-slate-900/50 rounded-xl">
+                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-2xl animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
+                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-lg animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI YA 😅</div>}
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-5 bg-white/90 backdrop-blur-md rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.05)] border-t-2 border-white">
-                        <div className="text-center mb-4">
-                            <span className="text-sm font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-full">Nilai Sempoa</span>
-                            <div className="text-3xl font-black text-sky-500 mt-2">{getNumericValue()}</div>
+                    <div className="p-4 bg-white/90 backdrop-blur-md rounded-t-[2rem] shadow-[0_-10px_20px_rgba(0,0,0,0.05)] border-t border-white">
+                        <div className="text-center mb-3">
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full">Nilai Sempoa</span>
+                            <div className="text-2xl font-black text-sky-500 mt-1">{getNumericValue()}</div>
                         </div>
                         <Abacus values={abacusValues} setValues={setAbacusValues} theme={theme} isReadonly={!isPlaying} />
-                        <div className="flex gap-3 mt-6 mb-2">
+                        <div className="flex gap-2 mt-4 mb-1">
                             {isPlaying ? (
                                 <>
-                                    <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-amber-100 text-amber-600 p-4 rounded-[1.5rem] font-bold btn-push shadow-[0_5px_0_#fcd34d] flex justify-center items-center"><IconRefresh /></button>
-                                    <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-4 rounded-[1.5rem] font-black text-xl shadow-[0_5px_0_#0ea5e9] btn-push flex justify-center items-center gap-2"><IconCheck /> CEK</button>
+                                    <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-amber-100 text-amber-600 px-3 py-2 rounded-xl font-bold btn-push shadow-[0_3px_0_#fcd34d] flex justify-center items-center"><IconRefresh /></button>
+                                    <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-base shadow-[0_3px_0_#0ea5e9] btn-push flex justify-center items-center gap-2"><IconCheck /> CEK</button>
                                 </>
                             ) : (
-                                <button onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-4 rounded-[1.5rem] font-black text-xl shadow-[0_5px_0_#059669] btn-push flex justify-center items-center gap-2 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></button>
+                                <button onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-2 rounded-xl font-black text-base shadow-[0_3px_0_#059669] btn-push flex justify-center items-center gap-2 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></button>
                             )}
                         </div>
                     </div>
@@ -635,17 +635,17 @@
         
         const TutorialMenu = ({ onSelect, onBack }) => (
             <div className="flex flex-col h-full bg-slate-50">
-                <div className="flex items-center p-5 bg-white shadow-sm border-b-2 border-slate-100 z-10 gap-4">
-                    <button onClick={onBack} className="p-3 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_3px_0_#cbd5e1]"><IconBack /></button>
-                    <h2 className="font-black text-2xl text-slate-700">Buku Panduan</h2>
+                <div className="flex items-center p-4 bg-white shadow-sm border-b border-slate-100 z-10 gap-3">
+                    <button onClick={onBack} className="p-2 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
+                    <h2 className="font-black text-xl text-slate-700">Buku Panduan</h2>
                 </div>
-                <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {TUTORIAL_DATA.map((tut, idx) => (
-                        <button key={tut.id} onClick={() => onSelect(tut)} className={`w-full text-left p-5 rounded-[2rem] border-4 shadow-sm btn-push transition-transform bg-white flex items-center gap-5 ${tut.color.replace('bg-', 'border-').replace('100', '200')} active:translate-y-1`}>
-                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-sm ${tut.color}`}>{tut.icon}</div>
+                        <button key={tut.id} onClick={() => onSelect(tut)} className={`w-full text-left p-4 rounded-[1.5rem] border-2 shadow-sm btn-push transition-transform bg-white flex items-center gap-4 ${tut.color.replace('bg-', 'border-').replace('100', '200')} active:translate-y-1`}>
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm ${tut.color}`}>{tut.icon}</div>
                             <div>
-                                <h3 className="font-black text-slate-800 text-lg">{idx + 1}. {tut.title}</h3>
-                                <p className="text-sm text-slate-500 font-bold mt-1">{tut.steps.length} Langkah</p>
+                                <h3 className="font-black text-slate-800 text-base">{idx + 1}. {tut.title}</h3>
+                                <p className="text-xs text-slate-500 font-bold mt-0.5">{tut.steps.length} Langkah</p>
                             </div>
                         </button>
                     ))}
@@ -659,27 +659,27 @@
 
             return (
                 <div className="flex flex-col h-full bg-slate-50">
-                    <div className="flex justify-between items-center p-4 bg-white shadow-sm border-b-2 border-slate-100">
-                        <button onClick={onBack} className="flex items-center gap-2 font-extrabold text-slate-500 bg-slate-100 px-4 py-2.5 rounded-xl btn-push shadow-[0_3px_0_#cbd5e1]"><IconBack /> Menu</button>
-                        <div className="font-black text-sky-500 bg-sky-100 px-3 py-1 rounded-xl">{stepIdx + 1}/{topic.steps.length}</div>
-                        <button onClick={onFinish} className="flex items-center gap-1 font-extrabold text-amber-600 bg-amber-100 px-4 py-2.5 rounded-xl btn-push shadow-[0_3px_0_#fef08a]">Lewati <IconSkip /></button>
+                    <div className="flex justify-between items-center p-3 bg-white shadow-sm border-b border-slate-100">
+                        <button onClick={onBack} className="flex items-center gap-1 font-extrabold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl btn-push shadow-[0_2px_0_#cbd5e1] text-sm"><IconBack /> Menu</button>
+                        <div className="font-black text-sky-500 bg-sky-100 px-3 py-1 rounded-xl text-sm">{stepIdx + 1}/{topic.steps.length}</div>
+                        <button onClick={onFinish} className="flex items-center gap-1 font-extrabold text-amber-600 bg-amber-100 px-3 py-2 rounded-xl btn-push shadow-[0_2px_0_#fef08a] text-sm">Lewati <IconSkip /></button>
                     </div>
                     
-                    <div className="flex-1 flex flex-col p-6 items-center justify-center overflow-y-auto">
-                        <div className="glass-card p-6 rounded-[2rem] w-full mb-8 min-h-[140px] flex items-center justify-center text-center shadow-lg border-2 border-white">
-                            <p className="text-xl font-extrabold text-slate-700 leading-relaxed">{step.text}</p>
+                    <div className="flex-1 flex flex-col p-4 items-center justify-center overflow-y-auto">
+                        <div className="glass-card p-4 rounded-[1.5rem] w-full mb-6 min-h-[100px] flex items-center justify-center text-center shadow-sm border-2 border-white">
+                            <p className="text-base font-extrabold text-slate-700 leading-relaxed">{step.text}</p>
                         </div>
                         <div className="w-full">
                             <Abacus values={numToAbacusArr(step.val)} theme={theme} highlightCols={step.hl} isReadonly={true} />
                         </div>
                     </div>
 
-                    <div className="p-5 bg-white border-t-2 border-slate-100 flex gap-3 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
-                        <button onClick={() => setStepIdx(Math.max(0, stepIdx-1))} disabled={stepIdx === 0} className={`py-4 px-6 rounded-[1.5rem] font-bold btn-push flex flex-col items-center justify-center gap-1 ${stepIdx === 0 ? 'bg-slate-100 text-slate-300 shadow-none' : 'bg-slate-200 text-slate-700 shadow-[0_4px_0_#cbd5e1]'}`}>
-                            <IconArrowLeft /> <span className="text-xs">Ulangi</span>
+                    <div className="p-4 bg-white border-t border-slate-100 flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)]">
+                        <button onClick={() => setStepIdx(Math.max(0, stepIdx-1))} disabled={stepIdx === 0} className={`py-3 px-4 rounded-xl font-bold btn-push flex flex-col items-center justify-center gap-1 ${stepIdx === 0 ? 'bg-slate-100 text-slate-300 shadow-none' : 'bg-slate-200 text-slate-700 shadow-[0_3px_0_#cbd5e1]'}`}>
+                            <IconArrowLeft /> <span className="text-[10px]">Ulangi</span>
                         </button>
-                        <button onClick={() => stepIdx < topic.steps.length - 1 ? setStepIdx(stepIdx + 1) : onFinish()} className="flex-1 bg-sky-400 text-white py-4 rounded-[1.5rem] font-black text-xl shadow-[0_5px_0_#0ea5e9] btn-push flex justify-center items-center gap-2">
-                            {stepIdx === topic.steps.length - 1 ? 'Mulai Latihan' : 'Langkah Berikutnya'} {stepIdx < topic.steps.length - 1 && <IconArrowRight />}
+                        <button onClick={() => stepIdx < topic.steps.length - 1 ? setStepIdx(stepIdx + 1) : onFinish()} className="flex-1 bg-sky-400 text-white py-3 rounded-xl font-black text-lg shadow-[0_4px_0_#0ea5e9] btn-push flex justify-center items-center gap-2">
+                            {stepIdx === topic.steps.length - 1 ? 'Mulai Latihan' : 'Berikutnya'} {stepIdx < topic.steps.length - 1 && <IconArrowRight />}
                         </button>
                     </div>
                 </div>
@@ -701,22 +701,22 @@
 
             return (
                 <div className="flex flex-col h-full bg-slate-50">
-                    <div className="flex justify-between items-center p-5 bg-white shadow-sm border-b-2 border-slate-100">
-                        <div className="font-black text-slate-700 text-lg">Latihan</div>
-                        <div className="font-black bg-amber-100 text-amber-600 px-4 py-1.5 rounded-xl">Soal {qIdx + 1}/{topic.practice.length}</div>
+                    <div className="flex justify-between items-center p-4 bg-white shadow-sm border-b border-slate-100">
+                        <div className="font-black text-slate-700 text-base">Latihan</div>
+                        <div className="font-black bg-amber-100 text-amber-600 px-3 py-1 rounded-xl text-sm">Soal {qIdx + 1}/{topic.practice.length}</div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-5 flex flex-col">
-                        <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border-4 border-slate-100 text-center mb-6">
-                            <h3 className="text-2xl font-black text-slate-800">{currentQ.q}</h3>
-                            {status === 'error' && <div className="mt-4 p-3 bg-rose-100 text-rose-600 rounded-2xl font-extrabold animate-pop">Belum tepat, coba lagi ya!</div>}
-                            {status === 'success' && <div className="mt-4 p-3 bg-emerald-100 text-emerald-600 rounded-2xl font-extrabold text-xl animate-pop">🎉 {currentQ.successMsg || 'Hebat! Benar, lanjutkan!'}</div>}
+                    <div className="flex-1 overflow-y-auto p-4 flex flex-col">
+                        <div className="bg-white p-6 rounded-[1.5rem] shadow-sm border-2 border-slate-100 text-center mb-4">
+                            <h3 className="text-xl font-black text-slate-800">{currentQ.q}</h3>
+                            {status === 'error' && <div className="mt-3 p-2 bg-rose-100 text-rose-600 rounded-xl font-extrabold animate-pop text-sm">Belum tepat, coba lagi ya!</div>}
+                            {status === 'success' && <div className="mt-3 p-2 bg-emerald-100 text-emerald-600 rounded-xl font-extrabold text-base animate-pop">🎉 {currentQ.successMsg || 'Hebat! Lanjutkan!'}</div>}
                         </div>
 
                         {showHint && status !== 'success' && (
-                            <div className="mb-6 p-5 bg-amber-50 border-4 border-amber-200 rounded-[2rem] flex items-start gap-4 animate-pop">
-                                <div className="text-amber-500 bg-amber-100 p-2 rounded-xl"><IconLightbulb /></div>
-                                <p className="font-bold text-amber-800 leading-relaxed">{currentQ.hint}</p>
+                            <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-[1.5rem] flex items-start gap-3 animate-pop">
+                                <div className="text-amber-500 bg-amber-100 p-1.5 rounded-lg"><IconLightbulb /></div>
+                                <p className="font-bold text-amber-800 text-sm leading-relaxed">{currentQ.hint}</p>
                             </div>
                         )}
 
@@ -725,16 +725,16 @@
                         </div>
                     </div>
 
-                    <div className="p-5 bg-white rounded-t-[2.5rem] shadow-[0_-15px_30px_rgba(0,0,0,0.03)] border-t-2 border-slate-100 flex gap-3">
+                    <div className="p-4 bg-white rounded-t-[1.5rem] shadow-[0_-5px_15px_rgba(0,0,0,0.03)] border-t border-slate-100 flex gap-2">
                         {status === 'success' ? (
-                            <button onClick={() => qIdx < topic.practice.length - 1 ? (setQIdx(qIdx + 1), setAbacusValues([0,0,0,0,0,0]), setStatus('idle')) : onFinish()} className="flex-1 bg-emerald-400 text-white py-4 rounded-[1.5rem] font-black text-xl btn-push shadow-[0_5px_0_#059669] flex justify-center items-center gap-2">
+                            <button onClick={() => qIdx < topic.practice.length - 1 ? (setQIdx(qIdx + 1), setAbacusValues([0,0,0,0,0,0]), setStatus('idle')) : onFinish()} className="flex-1 bg-emerald-400 text-white py-2 rounded-xl font-black text-base btn-push shadow-[0_3px_0_#059669] flex justify-center items-center gap-2">
                                 {qIdx === topic.practice.length - 1 ? 'Selesai' : 'Lanjut'} <IconArrowRight />
                             </button>
                         ) : (
                             <>
-                                <button onClick={() => setShowHint(true)} className="bg-amber-100 text-amber-600 p-4 rounded-[1.5rem] font-bold btn-push shadow-[0_4px_0_#fcd34d] flex items-center justify-center" title="Petunjuk"><IconLightbulb /></button>
-                                <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-slate-100 text-slate-500 p-4 rounded-[1.5rem] font-bold btn-push shadow-[0_4px_0_#cbd5e1] flex items-center justify-center" title="Ulangi Sempoa"><IconRefresh /></button>
-                                <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-4 rounded-[1.5rem] font-black text-xl btn-push shadow-[0_5px_0_#0ea5e9] flex justify-center items-center gap-2"><IconCheck /> CEK</button>
+                                <button onClick={() => setShowHint(true)} className="bg-amber-100 text-amber-600 px-3 py-2 rounded-xl font-bold btn-push shadow-[0_3px_0_#fcd34d] flex items-center justify-center" title="Petunjuk"><IconLightbulb /></button>
+                                <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-slate-100 text-slate-500 px-3 py-2 rounded-xl font-bold btn-push shadow-[0_3px_0_#cbd5e1] flex items-center justify-center" title="Ulangi Sempoa"><IconRefresh /></button>
+                                <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-base btn-push shadow-[0_3px_0_#0ea5e9] flex justify-center items-center gap-2"><IconCheck /> CEK</button>
                             </>
                         )}
                     </div>
