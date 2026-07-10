@@ -97,8 +97,14 @@
                 if (this.initialized) return;
                 await Tone.start();
                 
-                this.beadSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.01 } }).toDestination();
-                this.beadSynth.volume.value = -10;
+                // Bunyi tik pendek untuk biji sempoa (menggantikan nada melodik)
+                this.beadSynth = new Tone.MembraneSynth({ 
+                    pitchDecay: 0.01, 
+                    octaves: 1.5, 
+                    oscillator: { type: 'square' }, 
+                    envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 } 
+                }).toDestination();
+                this.beadSynth.volume.value = -8;
 
                 this.btnSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
                 this.btnSynth.volume.value = -15;
@@ -106,7 +112,7 @@
                 this.fxSynth = new Tone.PolySynth(Tone.Synth).toDestination();
                 this.fxSynth.volume.value = -12;
 
-                // BGM Synth yang ceria (Gaya 8-bit / FM Synth)
+                // BGM Synth yang ceria
                 this.bgmSynth = new Tone.Synth({ 
                     oscillator: { type: 'fmtriangle', modulationIndex: 2, harmonicity: 1.5 }, 
                     envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 } 
@@ -119,7 +125,7 @@
                     if(note) this.bgmSynth.triggerAttackRelease(note, "8n", time);
                 }, happyMelody, "8n");
                 
-                Tone.Transport.bpm.value = 130; // Tempo lebih cepat dan bersemangat
+                Tone.Transport.bpm.value = 130;
                 this.initialized = true;
 
                 if (!this.isBgmMuted) {
@@ -127,7 +133,7 @@
                     Tone.Transport.start();
                 }
             },
-            playBead() { if (this.initialized) this.beadSynth.triggerAttackRelease("C3", "32n"); },
+            playBead() { if (this.initialized) this.beadSynth.triggerAttackRelease("G5", "64n"); }, // Bunyi tik
             playBtn() { if (this.initialized) this.btnSynth.triggerAttackRelease("C6", "32n"); },
             playCorrect() { 
                 if (!this.initialized) return;
@@ -164,6 +170,7 @@
         const IconSkip = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>;
         const IconSoundOn = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>;
         const IconSoundOff = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="1" x2="1" y2="23"></line></svg>;
+        const IconRepeat = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10"></path><path d="M3.51 15A9 9 0 0 0 18.36 18.36L23 14"></path></svg>;
 
         const BEAD_THEMES = [
             { id: 'emerald', label: 'Hijau', classes: 'bg-emerald-400' },
@@ -181,23 +188,40 @@
             { id: 'navy', label: 'Navy', classes: 'bg-indigo-900', div: 'bg-black', rod: 'bg-indigo-200' }
         ];
 
+        // Konstanta ukuran baru (diperbesar untuk jempol)
+        const BEAD_H = 34; // Tinggi biji
+        const BEAD_W = 56; // Lebar biji
+        const TOP_CONT_H = 64; // Tinggi area atas
+        const BTM_CONT_H = 168; // Tinggi area bawah (4 biji * 34 + ruang geser)
+
         const Bead = ({ type, isActive, index, onClick, beadTheme }) => {
             let transformY = 0;
             if (type === 'top') {
-                transformY = isActive ? 26 : 4; 
+                // Area atas: Jika aktif turun (mendekati pembatas), jika tidak di atas
+                transformY = isActive ? (TOP_CONT_H - BEAD_H - 4) : 4; 
             } else {
+                // Area bawah
                 if (isActive) {
-                    transformY = 4 + (index - 1) * 26; 
+                    // Aktif: naik ke atas mendekati pembatas
+                    transformY = 4 + (index - 1) * BEAD_H; 
                 } else {
-                    transformY = 136 - 4 - (4 - index) * 26 - 26; 
+                    // Tidak aktif: istirahat di bawah
+                    transformY = BTM_CONT_H - 4 - (4 - index) * BEAD_H - BEAD_H; 
                 }
             }
 
             return (
                 <div 
                     onPointerDown={(e) => { e.preventDefault(); onClick(); SoundEngine.playBead(); }}
-                    className={`absolute w-12 h-[26px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
-                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-24px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
+                    className={`absolute rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
+                    style={{ 
+                        width: `${BEAD_W}px`, 
+                        height: `${BEAD_H}px`,
+                        transform: `translateY(${transformY}px)`, 
+                        left: '50%', 
+                        marginLeft: `-${BEAD_W / 2}px`, 
+                        backgroundColor: beadTheme.classes.replace('bg-', '') 
+                    }}
                 />
             );
         };
@@ -210,13 +234,16 @@
             const handleBottomClick = (beadIndex) => { if(!isReadonly) onChange((topActive ? 5 : 0) + (beadIndex <= bottomActiveCount ? beadIndex - 1 : beadIndex)); };
 
             return (
-                <div className={`flex flex-col items-center w-[50px] h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
-                    <div className={`absolute top-0 bottom-0 w-2 rounded-full z-0 left-1/2 -ml-[4px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
-                    <div className="relative w-full h-[56px]">
+                <div className={`flex flex-col items-center w-[60px] h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
+                    <div className={`absolute top-0 bottom-0 w-2.5 rounded-full z-0 left-1/2 -ml-[5px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
+                    
+                    <div className="relative w-full" style={{ height: `${TOP_CONT_H}px` }}>
                         <Bead type="top" isActive={topActive} onClick={handleTopClick} beadTheme={themeConfig.bead} />
                     </div>
-                    <div className="w-full h-[10px]"></div>
-                    <div className="relative w-full h-[136px]">
+                    
+                    <div className="w-full h-[12px]"></div> {/* Ruang untuk divider absolute */}
+                    
+                    <div className="relative w-full" style={{ height: `${BTM_CONT_H}px` }}>
                         {[1, 2, 3, 4].map(idx => (
                             <Bead key={`bottom-${idx}`} type="bottom" index={idx} isActive={idx <= bottomActiveCount} onClick={() => handleBottomClick(idx)} beadTheme={themeConfig.bead} />
                         ))}
@@ -238,9 +265,11 @@
             };
 
             return (
-                <div className={`w-full p-3 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
-                    <div className={`absolute top-[68px] left-0 right-0 h-[10px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
-                    <div className="flex justify-between items-center w-full px-1">
+                <div className={`w-full p-2 py-3 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
+                    {/* Pembatas Tengah - Posisinya disesuaikan dengan padding atas dan ukuran container atas */}
+                    <div className={`absolute left-0 right-0 h-[12px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`} style={{ top: `76px` }}></div>
+                    
+                    <div className="flex justify-between items-center w-full overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'none' }}>
                         {values.map((val, idx) => (
                             <AbacusColumn key={idx} value={val} onChange={(newVal) => handleColChange(idx, newVal)} themeConfig={themeConfig} isHighlighted={highlightCols.includes(idx)} isReadonly={isReadonly} />
                         ))}
@@ -335,8 +364,8 @@
                     </div>
 
                     <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white rounded-t-[1.5rem] flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] z-10">
-                        <button onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold shadow-[0_3px_0_#cbd5e1] btn-push flex items-center justify-center"><IconHistory /></button>
-                        <button onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-3 rounded-xl font-bold shadow-[0_3px_0_#b45309] btn-push flex items-center justify-center"><IconBook /></button>
+                        <button onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold shadow-[0_3px_0_#cbd5e1] btn-push flex items-center justify-center" title="Riwayat Latihan"><IconHistory /></button>
+                        <button onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-3 rounded-xl font-bold shadow-[0_3px_0_#b45309] btn-push flex items-center justify-center" title="Buku Panduan"><IconBook /></button>
                         <button onClick={() => onStart({ operation, placeValue, rowCount })} className="flex-1 bg-emerald-400 text-white py-3 rounded-xl font-black text-lg shadow-[0_4px_0_#059669] btn-push flex justify-center items-center gap-2"><IconPlay /> MULAI</button>
                     </div>
                 </div>
@@ -406,6 +435,14 @@
                 setIsPlaying(true);
             }, [settings]);
 
+            // Fungsi baru untuk mengulang soal yang sama
+            const handleRepeatQuestion = () => {
+                setAbacusValues([0,0,0,0,0,0]);
+                setFeedback(null);
+                setTime(0);
+                setIsPlaying(true);
+            };
+
             useEffect(() => { loadNewQuestion(); }, [loadNewQuestion]);
 
             useEffect(() => {
@@ -424,7 +461,16 @@
                 setFeedback(isCorrect ? 'correct' : 'wrong');
                 if (isCorrect) SoundEngine.playCorrect();
                 else SoundEngine.playWrong();
-                saveHistory({ questionStr: question.rows.join('  |  '), expected: question.expected, userAns: userAns, isCorrect: isCorrect, time: time, date: new Date().toISOString() });
+                
+                // Simpan ke history internal (Local Storage)
+                saveHistory({ 
+                    questionStr: question.rows.join('  |  '), 
+                    expected: question.expected, 
+                    userAns: userAns, 
+                    isCorrect: isCorrect, 
+                    time: time, 
+                    date: new Date().toISOString() 
+                });
             };
 
             if (!question) return null;
@@ -438,17 +484,20 @@
                     </div>
 
                     <div className="flex-1 flex flex-col items-center justify-center p-1">
-                        <div className="bg-slate-800 p-2.5 rounded-2xl shadow-lg border-4 border-slate-700 w-full max-w-[160px] relative">
-                            <div className="absolute -top-2 left-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
-                            <div className="absolute -top-2 right-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
-                            <div className="flex flex-col items-end text-xl font-black text-white font-mono tracking-wider leading-tight">
+                        {/* Panel Soal Diperkecil */}
+                        <div className="bg-slate-800 p-1.5 px-3 rounded-2xl shadow-lg border-2 border-slate-700 w-full max-w-[120px] relative">
+                            <div className="absolute -top-1.5 left-3 w-1.5 h-3 bg-amber-400 rounded-full shadow-sm"></div>
+                            <div className="absolute -top-1.5 right-3 w-1.5 h-3 bg-amber-400 rounded-full shadow-sm"></div>
+                            
+                            {/* Font Soal Diperkecil (text-base / text-sm) */}
+                            <div className="flex flex-col items-end text-base font-black text-white font-mono tracking-wider leading-tight">
                                 {question.rows.map((row, idx) => (
                                     <div key={idx} className={`${idx === question.rows.length - 1 ? 'border-b-2 border-slate-500 pb-1 mb-1 w-full text-right' : ''}`}>{row}</div>
                                 ))}
                             </div>
-                            <div className="mt-1.5 h-5 flex items-center justify-center bg-slate-900/50 rounded-lg">
-                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
-                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
+                            <div className="mt-1 h-4 flex items-center justify-center bg-slate-900/50 rounded-lg">
+                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-[10px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
+                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-[10px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
                             </div>
                         </div>
                     </div>
@@ -458,15 +507,22 @@
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full">Nilai Sempoa</span>
                             <div className="text-lg font-black text-sky-500 leading-none mt-1">{getNumericValue()}</div>
                         </div>
+                        
+                        {/* Komponen Abacus (Sudah diperbesar di dalamnya) */}
                         <Abacus values={abacusValues} setValues={setAbacusValues} theme={theme} isReadonly={!isPlaying} />
+                        
                         <div className="flex gap-2 mt-2 mb-1">
                             {isPlaying ? (
                                 <>
-                                    <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl font-bold btn-push shadow-[0_3px_0_#fcd34d] flex justify-center items-center"><IconRefresh /></button>
-                                    <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-1.5 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] btn-push flex justify-center items-center gap-2"><IconCheck /> CEK</button>
+                                    <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-slate-200 text-slate-600 px-3 py-1.5 rounded-xl font-bold btn-push shadow-[0_3px_0_#cbd5e1] flex justify-center items-center"><IconRefresh /></button>
+                                    <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-1.5 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] btn-push flex justify-center items-center gap-2"><IconCheck /> CEK JAWABAN</button>
                                 </>
                             ) : (
-                                <button onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-1.5 rounded-xl font-black text-sm shadow-[0_3px_0_#059669] btn-push flex justify-center items-center gap-2 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></button>
+                                <>
+                                    {/* Tombol Ulang Soal */}
+                                    <button onClick={handleRepeatQuestion} className="flex-1 bg-amber-400 text-amber-900 py-1.5 rounded-xl font-black text-xs shadow-[0_3px_0_#b45309] btn-push flex justify-center items-center gap-1.5"><IconRepeat /> ULANG</button>
+                                    <button onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-1.5 rounded-xl font-black text-xs shadow-[0_3px_0_#059669] btn-push flex justify-center items-center gap-1.5 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></button>
+                                </>
                             )}
                         </div>
                     </div>
@@ -479,8 +535,8 @@
                 <div className="flex flex-col h-full bg-slate-50">
                     <div className="flex justify-between items-center p-4 bg-white shadow-sm border-b-2 border-slate-100 z-10">
                         <button onClick={onBack} className="p-2.5 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
-                        <h2 className="font-black text-xl text-slate-700">Riwayat</h2>
-                        <button onClick={onClear} className="p-2.5 text-rose-500 bg-rose-100 hover:bg-rose-200 rounded-full btn-push shadow-[0_2px_0_#fecdd3]"><IconTrash /></button>
+                        <h2 className="font-black text-xl text-slate-700">Riwayat Latihan</h2>
+                        <button onClick={onClear} className="p-2.5 text-rose-500 bg-rose-100 hover:bg-rose-200 rounded-full btn-push shadow-[0_2px_0_#fecdd3]" title="Hapus Riwayat"><IconTrash /></button>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -488,7 +544,7 @@
                             <div className="text-center text-slate-400 mt-20 flex flex-col items-center">
                                 <div className="bg-slate-100 p-5 rounded-full mb-3"><IconHistory /></div>
                                 <p className="font-extrabold text-base">Belum ada riwayat.</p>
-                                <p className="font-semibold mt-1 text-sm">Ayo mulai bermain!</p>
+                                <p className="font-semibold mt-1 text-sm">Ayo mulai berlatih sempoa!</p>
                             </div>
                         ) : (
                             history.slice().reverse().map((item, idx) => (
@@ -569,41 +625,6 @@
                 ]
             },
             {
-                id: 'aturan_tambah', title: 'Aturan Khusus +', icon: '🌟', color: 'text-orange-500 bg-orange-100 border-orange-300',
-                steps: [
-                    { text: 'Urutan cara: 1. Langsung ➡️ 2. Sahabat Kecil ➡️ 3. Sahabat Besar.', val: 0, hl: [] },
-                    { text: 'Contoh: 6 + 7. Atur sempoa menjadi 6.', val: 6, hl: [5] },
-                    { text: 'Ingin tambah 7 (lewat 9). Sahabat besar 7 adalah 3.', val: 6, hl: [5] },
-                    { text: 'Tambahkan 1 ke puluhan (+10), kurangi 3 dari satuan (-3). Hasilnya 13.', val: 13, hl: [4, 5] },
-                    { text: 'Contoh: 9 + 8. Atur sempoa menjadi 9.', val: 9, hl: [5] },
-                    { text: 'Tambah 8 (lewat 9). Sahabat besar 8 adalah 2 (+10 -2).', val: 9, hl: [5] },
-                    { text: 'Tambahkan 1 ke puluhan, kurangi 2 dari satuan. Hasilnya 17.', val: 17, hl: [4, 5] }
-                ],
-                practice: [
-                    { q: 'Hitung: 2 + 3', expected: 5, hint: 'Untuk tambah 3, gunakan sahabat kecil: +5 -2.', successMsg: 'Mantap! Soal ini menggunakan sahabat kecil.' },
-                    { q: 'Hitung: 8 + 7', expected: 15, hint: 'Melewati 9, gunakan sahabat besar 7 yaitu 3 (+10 -3).', successMsg: 'Benar! Soal ini menggunakan sahabat besar.' },
-                    { q: 'Hitung: 48 + 27', expected: 75, hint: 'Satuan 8+7 (simpan 1, tulis 5). Puluhan 4+2+1=7.' }
-                ]
-            },
-            {
-                id: 'aturan_kurang', title: 'Aturan Khusus -', icon: '💫', color: 'text-amber-500 bg-amber-100 border-amber-300',
-                steps: [
-                    { text: 'Gunakan saat biji satuan tidak cukup untuk dikurangi.', val: 0, hl: [] },
-                    { text: 'Urutan: 1. Langsung ➡️ 2. Sahabat Kecil ➡️ 3. Pinjam Puluhan.', val: 0, hl: [] },
-                    { text: 'Contoh: 13 - 7. Atur sempoa menjadi 13.', val: 13, hl: [4, 5] },
-                    { text: 'Satuan 3 tak cukup kurang 7. Sahabat besar 7 adalah 3. Gunakan -10 +3.', val: 13, hl: [4, 5] },
-                    { text: 'Pinjam 1 dari puluhan (-10), tambah 3 di satuan. Hasilnya 6.', val: 6, hl: [4, 5] },
-                    { text: 'Contoh: 17 - 8. Atur sempoa menjadi 17.', val: 17, hl: [4, 5] },
-                    { text: 'Satuan 7 tak cukup kurang 8. Sahabat besar 8 adalah 2. Gunakan -10 +2.', val: 17, hl: [4, 5] },
-                    { text: 'Pinjam 1 dari puluhan, tambah 2 di satuan. Hasilnya 9.', val: 9, hl: [4, 5] }
-                ],
-                practice: [
-                    { q: 'Hitung: 13 - 6', expected: 7, hint: 'Satuan tak cukup. Sahabat besar 6 adalah 4 (-10 +4).', successMsg: 'Benar! Soal ini menggunakan pinjam.' },
-                    { q: 'Hitung: 17 - 9', expected: 8, hint: 'Pinjam puluhan. Sahabat besar 9 adalah 1 (-10 +1).' },
-                    { q: 'Hitung: 72 - 48', expected: 24, hint: '2 tak cukup kurang 8. 12-8=4. Puluhan sisa 6-4=2.' }
-                ]
-            },
-            {
                 id: 'add', title: 'Penjumlahan Dasar', icon: '➕', color: 'text-emerald-500 bg-emerald-100 border-emerald-300',
                 steps: [
                     { text: 'Tambahkan angka dengan menggeser biji ke garis tengah.', val: 0, hl: [] },
@@ -616,83 +637,6 @@
                 practice: [
                     { q: 'Hitung: 15 + 22', expected: 37, hint: 'Atur 15, lalu tambah 2 di puluhan, dan 2 di satuan.' },
                     { q: 'Hitung: 150 + 25', expected: 175, hint: 'Atur 150. Tambah 2 di puluhan, 5 di satuan.' }
-                ]
-            },
-            {
-                id: 'sub', title: 'Pengurangan Dasar', icon: '➖', color: 'text-rose-500 bg-rose-100 border-rose-300',
-                steps: [
-                    { text: 'Kurangi angka dengan menjauhkan biji dari garis tengah.', val: 0, hl: [] },
-                    { text: 'Contoh: 56 - 23', val: 0, hl: [] },
-                    { text: 'Atur sempoa menjadi 56.', val: 56, hl: [4, 5] },
-                    { text: 'Kurangi 2 di kolom puluhan (5 - 2 = 3).', val: 36, hl: [4] },
-                    { text: 'Kurangi 3 di kolom satuan (6 - 3 = 3).', val: 33, hl: [5] },
-                    { text: 'Hasil akhirnya: 33.', val: 33, hl: [] }
-                ],
-                practice: [
-                    { q: 'Hitung: 45 - 21', expected: 24, hint: 'Atur 45. Kurangi 2 di puluhan, 1 di satuan.' },
-                    { q: 'Hitung: 58 - 35', expected: 23, hint: 'Atur 58. Kurangi 3 di puluhan, 5 di satuan.' }
-                ]
-            },
-            {
-                id: 'mul', title: 'Perkalian', icon: '✖️', color: 'text-indigo-500 bg-indigo-100 border-indigo-300',
-                steps: [
-                    { text: 'Perkalian adalah penjumlahan berulang.', val: 0, hl: [] },
-                    { text: 'Contoh 1: 4 × 3', val: 0, hl: [] },
-                    { text: 'Artinya: 4 + 4 + 4 = 12.', val: 0, hl: [] },
-                    { text: 'Atur 12 di sempoa.', val: 12, hl: [4, 5] },
-                    { text: 'Contoh 2: 24 × 3', val: 0, hl: [] },
-                    { text: 'Pecah: 20 × 3 = 60. Dan 4 × 3 = 12.', val: 0, hl: [] },
-                    { text: 'Jumlahkan: 60 + 12 = 72.', val: 72, hl: [4, 5] }
-                ],
-                practice: [
-                    { q: 'Berapa 5 × 4 ?', expected: 20, hint: '5 + 5 + 5 + 5 = 20. Atur angka 2 di puluhan.' },
-                    { q: 'Berapa 11 × 3 ?', expected: 33, hint: '10x3 = 30. 1x3 = 3. 30+3 = 33.' }
-                ]
-            },
-            {
-                id: 'div', title: 'Pembagian', icon: '➗', color: 'text-purple-500 bg-purple-100 border-purple-300',
-                steps: [
-                    { text: 'Pembagian adalah membagi angka ke dalam kelompok.', val: 0, hl: [] },
-                    { text: 'Contoh 1: 12 ÷ 3', val: 0, hl: [] },
-                    { text: '12 dibagi 3 kelompok. Tiap kelompok berisi 4.', val: 0, hl: [] },
-                    { text: 'Atur 4 di sempoa.', val: 4, hl: [5] },
-                    { text: 'Contoh 2: 144 ÷ 12', val: 0, hl: [] },
-                    { text: 'Angka dikali 12 hasilnya 144 adalah 12.', val: 0, hl: [] },
-                    { text: 'Atur 12 di sempoa.', val: 12, hl: [4, 5] }
-                ],
-                practice: [
-                    { q: 'Berapa 15 ÷ 3 ?', expected: 5, hint: 'Berapa dikali 3 hasilnya 15? Benar, 5. Atur 5 di satuan.' },
-                    { q: 'Berapa 100 ÷ 10 ?', expected: 10, hint: 'Berapa kali 10 agar jadi 100? Benar, 10. Atur 1 di puluhan.' }
-                ]
-            },
-            {
-                id: 'mix1', title: 'Campuran + dan -', icon: '⚖️', color: 'text-fuchsia-500 bg-fuchsia-100 border-fuchsia-300',
-                steps: [
-                    { text: 'Hitung berurutan dari atas ke bawah.', val: 0, hl: [] },
-                    { text: 'Soal: 35 + 12 - 20', val: 0, hl: [] },
-                    { text: 'Langkah 1: Atur sempoa menjadi 35.', val: 35, hl: [4, 5] },
-                    { text: 'Langkah 2: Tambahkan 12. (Hasil: 47)', val: 47, hl: [4, 5] },
-                    { text: 'Langkah 3: Kurangi 20. (Hasil: 27)', val: 27, hl: [4] }
-                ],
-                practice: [
-                    { q: 'Hitung: 50 + 20 - 30', expected: 40, hint: '50 tambah 20 jadi 70. Lalu 70 kurang 30 jadi 40.' },
-                    { q: 'Hitung: 100 - 40 + 15', expected: 75, hint: '100 - 40 = 60. 60 + 15 = 75.' }
-                ]
-            },
-            {
-                id: 'mix2', title: 'Campuran Semua', icon: '✨', color: 'text-rose-500 bg-rose-100 border-rose-300',
-                steps: [
-                    { text: 'Aturan: Hitung Perkalian (×) dan Pembagian (÷) terlebih dahulu!', val: 0, hl: [] },
-                    { text: 'Soal 1: 20 + 4 × 3', val: 0, hl: [] },
-                    { text: 'Hitung 4 × 3 = 12.', val: 0, hl: [] },
-                    { text: 'Lalu hitung 20 + 12 = 32. Atur 32.', val: 32, hl: [4, 5] },
-                    { text: 'Soal 2: 100 - 24 ÷ 6', val: 0, hl: [] },
-                    { text: 'Hitung 24 ÷ 6 = 4.', val: 0, hl: [] },
-                    { text: 'Lalu 100 - 4 = 96. Atur 96.', val: 96, hl: [4, 5] }
-                ],
-                practice: [
-                    { q: 'Hitung: 10 + 5 × 2', expected: 20, hint: 'Hitung 5x2 dulu (10). Lalu 10 + 10 = 20.' },
-                    { q: 'Hitung: 50 - 20 ÷ 2', expected: 40, hint: 'Hitung 20÷2 dulu (10). Lalu 50 - 10 = 40.' }
                 ]
             }
         ];
@@ -819,6 +763,7 @@
             const [showConfirm, setShowConfirm] = useState(false);
             const [isMuted, setIsMuted] = useState(false);
 
+            // Memuat riwayat dan pengaturan dari Local Storage saat aplikasi dimuat
             useEffect(() => {
                 const saved = localStorage.getItem('soroban_history');
                 if (saved) try { setHistory(JSON.parse(saved)); } catch(e) {}
@@ -860,7 +805,7 @@
 
             const handleSaveHistory = (record) => {
                 const newHistory = [...history, record];
-                if(newHistory.length > 50) newHistory.shift(); 
+                if(newHistory.length > 50) newHistory.shift(); // Simpan maksimal 50 riwayat terakhir
                 setHistory(newHistory);
                 localStorage.setItem('soroban_history', JSON.stringify(newHistory));
             };
