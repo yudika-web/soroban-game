@@ -183,22 +183,21 @@
 
         const Bead = ({ type, isActive, index, onClick, beadTheme }) => {
             let transformY = 0;
-            // Small sizing logic
             if (type === 'top') {
                 transformY = isActive ? 26 : 4; 
             } else {
                 if (isActive) {
-                    transformY = 4 + (index - 1) * 20; 
+                    transformY = 4 + (index - 1) * 26; 
                 } else {
-                    transformY = 96 - 4 - (4 - index) * 20 - 20; 
+                    transformY = 136 - 4 - (4 - index) * 26 - 26; 
                 }
             }
 
             return (
                 <div 
                     onPointerDown={(e) => { e.preventDefault(); onClick(); SoundEngine.playBead(); }}
-                    className={`absolute w-10 h-[20px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
-                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-20px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
+                    className={`absolute w-12 h-[26px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
+                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-24px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
                 />
             );
         };
@@ -211,16 +210,13 @@
             const handleBottomClick = (beadIndex) => { if(!isReadonly) onChange((topActive ? 5 : 0) + (beadIndex <= bottomActiveCount ? beadIndex - 1 : beadIndex)); };
 
             return (
-                <div className={`flex flex-col items-center w-11 h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
-                    <div className={`absolute top-0 bottom-0 w-1.5 rounded-full z-0 left-1/2 -ml-[3px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
-                    {/* Top compartment: 50px */}
-                    <div className="relative w-full h-[50px]">
+                <div className={`flex flex-col items-center w-[50px] h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
+                    <div className={`absolute top-0 bottom-0 w-2 rounded-full z-0 left-1/2 -ml-[4px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
+                    <div className="relative w-full h-[56px]">
                         <Bead type="top" isActive={topActive} onClick={handleTopClick} beadTheme={themeConfig.bead} />
                     </div>
-                    {/* Divider space: 14px */}
-                    <div className="w-full h-[14px]"></div>
-                    {/* Bottom compartment: 96px */}
-                    <div className="relative w-full h-[96px]">
+                    <div className="w-full h-[10px]"></div>
+                    <div className="relative w-full h-[136px]">
                         {[1, 2, 3, 4].map(idx => (
                             <Bead key={`bottom-${idx}`} type="bottom" index={idx} isActive={idx <= bottomActiveCount} onClick={() => handleBottomClick(idx)} beadTheme={themeConfig.bead} />
                         ))}
@@ -242,8 +238,8 @@
             };
 
             return (
-                <div className={`w-full p-2.5 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
-                    <div className={`absolute top-[62px] left-0 right-0 h-[8px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
+                <div className={`w-full p-3 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
+                    <div className={`absolute top-[68px] left-0 right-0 h-[10px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
                     <div className="flex justify-between items-center w-full px-1">
                         {values.map((val, idx) => (
                             <AbacusColumn key={idx} value={val} onChange={(newVal) => handleColChange(idx, newVal)} themeConfig={themeConfig} isHighlighted={highlightCols.includes(idx)} isReadonly={isReadonly} />
@@ -441,18 +437,18 @@
                         <div className="w-10"></div> 
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center p-2">
-                        <div className="bg-slate-800 p-3 rounded-2xl shadow-lg border-4 border-slate-700 w-full max-w-[220px] relative">
-                            <div className="absolute -top-2 left-6 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
-                            <div className="absolute -top-2 right-6 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
-                            <div className="flex flex-col items-end text-2xl font-black text-white font-mono tracking-wider leading-tight">
+                    <div className="flex-1 flex flex-col items-center justify-center p-1">
+                        <div className="bg-slate-800 p-2.5 rounded-2xl shadow-lg border-4 border-slate-700 w-full max-w-[160px] relative">
+                            <div className="absolute -top-2 left-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
+                            <div className="absolute -top-2 right-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
+                            <div className="flex flex-col items-end text-xl font-black text-white font-mono tracking-wider leading-tight">
                                 {question.rows.map((row, idx) => (
                                     <div key={idx} className={`${idx === question.rows.length - 1 ? 'border-b-2 border-slate-500 pb-1 mb-1 w-full text-right' : ''}`}>{row}</div>
                                 ))}
                             </div>
-                            <div className="mt-2 h-6 flex items-center justify-center bg-slate-900/50 rounded-lg">
-                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-sm animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
-                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-sm animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
+                            <div className="mt-1.5 h-5 flex items-center justify-center bg-slate-900/50 rounded-lg">
+                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
+                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
                             </div>
                         </div>
                     </div>
@@ -736,7 +732,7 @@
                     </div>
                     
                     <div className="flex-1 flex flex-col p-4 items-center justify-center overflow-y-auto">
-                        <div className="glass-card p-4 rounded-[1.5rem] w-full mb-4 min-h-[100px] flex items-center justify-center text-center shadow-lg border-2 border-white">
+                        <div className="glass-card p-3 rounded-2xl w-full mb-3 min-h-[80px] flex items-center justify-center text-center shadow-lg border-2 border-white">
                             <p className="text-sm font-extrabold text-slate-700 leading-relaxed">{step.text}</p>
                         </div>
                         <div className="w-full">
@@ -778,17 +774,17 @@
                         <div className="font-black bg-amber-100 text-amber-600 px-3 py-1 rounded-lg text-sm">Soal {qIdx + 1}/{topic.practice.length}</div>
                     </div>
                     
-                    <div className="flex-1 overflow-y-auto p-3 flex flex-col">
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-100 text-center mb-3">
-                            <h3 className="text-lg font-black text-slate-800">{currentQ.q}</h3>
-                            {status === 'error' && <div className="mt-2 p-2 bg-rose-100 text-rose-600 rounded-xl font-extrabold text-sm animate-pop">Belum tepat, coba lagi ya!</div>}
-                            {status === 'success' && <div className="mt-2 p-2 bg-emerald-100 text-emerald-600 rounded-xl font-extrabold text-sm animate-pop">🎉 {currentQ.successMsg || 'Hebat! Benar, lanjutkan!'}</div>}
+                    <div className="flex-1 overflow-y-auto p-2 flex flex-col">
+                        <div className="bg-white p-3 rounded-2xl shadow-sm border-2 border-slate-100 text-center mb-2">
+                            <h3 className="text-base font-black text-slate-800">{currentQ.q}</h3>
+                            {status === 'error' && <div className="mt-1.5 p-1.5 bg-rose-100 text-rose-600 rounded-lg font-extrabold text-xs animate-pop">Belum tepat, coba lagi ya!</div>}
+                            {status === 'success' && <div className="mt-1.5 p-1.5 bg-emerald-100 text-emerald-600 rounded-lg font-extrabold text-xs animate-pop">🎉 {currentQ.successMsg || 'Hebat! Benar, lanjutkan!'}</div>}
                         </div>
 
                         {showHint && status !== 'success' && (
-                            <div className="mb-3 p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl flex items-start gap-2 animate-pop">
-                                <div className="text-amber-500 bg-amber-100 p-1.5 rounded-lg"><IconLightbulb /></div>
-                                <p className="font-bold text-amber-800 text-xs leading-relaxed">{currentQ.hint}</p>
+                            <div className="mb-2 p-2 bg-amber-50 border-2 border-amber-200 rounded-xl flex items-start gap-2 animate-pop">
+                                <div className="text-amber-500 bg-amber-100 p-1 rounded-lg"><IconLightbulb /></div>
+                                <p className="font-bold text-amber-800 text-[11px] leading-relaxed">{currentQ.hint}</p>
                             </div>
                         )}
 
