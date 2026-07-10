@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Soroban Kids - Belajar Sempoa</title>
     
-    <!-- MENGHAPUS polyfill.io YANG BERBAHAYA, DIGANTI DENGAN CORE-JS YANG AMAN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.33.0/minified.min.js"></script>
-
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -18,29 +15,13 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     
-    <!-- Tone.js for Audio -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-
     <!-- Babel for JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+    <!-- Tone.js for Synthesizer Sounds -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+
     <style>
-        html, body {
-            height: 100%;
-            height: 100vh;
-            height: -webkit-fill-available; /* Fix untuk Safari iOS Bottom Bar */
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            position: fixed;
-            width: 100%;
-        }
-
-        /* Class khusus untuk padding aman (Safe Area) di iPhone X */
-        .nav-safe {
-            padding-bottom: calc(0.75rem + env(safe-area-inset-bottom, 20px)) !important;
-        }
-
         body {
             font-family: 'Nunito', sans-serif;
             background-color: #e0f2fe;
@@ -48,10 +29,12 @@
             background-size: 32px 32px;
             background-position: 0 0, 16px 16px;
             user-select: none;
-            -webkit-user-select: none;
             touch-action: manipulation;
+            overflow: hidden; /* Prevent body scroll */
             display: flex;
             justify-content: center;
+            height: 100dvh; /* Mobile fit-to-screen */
+            width: 100vw;
         }
         
         ::-webkit-scrollbar { width: 0px; background: transparent; }
@@ -59,7 +42,6 @@
         .glass-card {
             background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
             border: 2px solid rgba(255, 255, 255, 1);
             box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
         }
@@ -86,6 +68,13 @@
                 0 10px 20px rgba(0,0,0,0.15);
         }
 
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+
         @keyframes popIn {
             0% { transform: scale(0.8); opacity: 0; }
             80% { transform: scale(1.05); opacity: 1; }
@@ -96,87 +85,85 @@
 </head>
 <body class="text-slate-800 antialiased">
 
-    <div id="root" class="w-full h-full max-w-md bg-white shadow-2xl overflow-y-auto relative flex flex-col mx-auto border-x-4 border-white/50"></div>
+    <div id="root" class="w-full h-full max-w-md bg-white shadow-2xl relative flex flex-col mx-auto border-x-4 border-white/50 overflow-hidden"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useCallback, useRef } = React;
 
-        // --- SAFE AUDIO SYSTEM ---
-        // Jika iPad menolak Audio, game tidak akan crash
-        const audioEngine = {
-            ready: false,
-            bgmAudio: null,
-            synths: {},
-            bgmEnabled: true,
-            
-            init: async function() {
-                if (this.ready || typeof Tone === 'undefined') return;
-                try {
-                    await Tone.start();
-                    this.synths.click = new Tone.Synth({ oscillator: { type: 'sine' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
-                    
-                    // Suara biji diubah menjadi 'tick' mekanikal (seperti keyboard) dengan durasi sangat singkat
-                    this.synths.bead = new Tone.Synth({ 
-                        oscillator: { type: 'square' }, 
-                        envelope: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.01 } 
-                    }).toDestination();
-                    this.synths.bead.volume.value = -12;
+        const SoundEngine = {
+            initialized: false,
+            isBgmMuted: false,
+            async init() {
+                if (this.initialized) return;
+                await Tone.start();
+                
+                this.beadSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: 'sine' }, envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.01 } }).toDestination();
+                this.beadSynth.volume.value = -10;
 
-                    this.synths.correct = new Tone.PolySynth(Tone.Synth, { envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 } }).toDestination();
-                    this.synths.wrong = new Tone.Synth({ oscillator: { type: 'sawtooth' }, envelope: { attack: 0.05, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
-                    
-                    // Menggunakan HTML5 Audio Streaming untuk file MP3 Eksternal (URL RAW GitHub)
-                    const mp3Url = "https://raw.githubusercontent.com/yudika-web/database/main/Final%20Fantasy%20Record%20Keeper%20Original%20Soundtrack%20Vol.%201%20-%20Nobuo%20Uematsu%20-%20Free%20Download%2C%20Borrow%2C%20and%20Streaming%20-%20Internet%20Archive.mp3";
-                    this.bgmAudio = new Audio(mp3Url);
-                    this.bgmAudio.loop = true;
-                    this.bgmAudio.volume = 0.3; // Volume musik latar
+                this.btnSynth = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.01, decay: 0.1, sustain: 0, release: 0.1 } }).toDestination();
+                this.btnSynth.volume.value = -15;
 
-                    this.ready = true;
-                } catch(e) {
-                    console.warn("Audio dilarang oleh browser lawas.");
+                this.fxSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+                this.fxSynth.volume.value = -12;
+
+                // BGM Synth yang ceria (Gaya 8-bit / FM Synth)
+                this.bgmSynth = new Tone.Synth({ 
+                    oscillator: { type: 'fmtriangle', modulationIndex: 2, harmonicity: 1.5 }, 
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.5 } 
+                }).toDestination();
+                this.bgmSynth.volume.value = -22; 
+
+                // Melodi Ceria
+                const happyMelody = ["C4", "E4", "G4", "C5", "A4", "G4", null, "E4", "F4", "A4", "G4", "E4", "D4", "E4", "C4", null];
+                this.bgmSeq = new Tone.Sequence((time, note) => {
+                    if(note) this.bgmSynth.triggerAttackRelease(note, "8n", time);
+                }, happyMelody, "8n");
+                
+                Tone.Transport.bpm.value = 130; // Tempo lebih cepat dan bersemangat
+                this.initialized = true;
+
+                if (!this.isBgmMuted) {
+                    this.bgmSeq.start(0);
+                    Tone.Transport.start();
                 }
             },
-            playClick: function() { if(this.ready) try{ this.synths.click.triggerAttackRelease("C6", "16n", Tone.now(), 0.3); }catch(e){} },
-            playBead: function() { if(this.ready) try{ this.synths.bead.triggerAttackRelease("C6", "64n", Tone.now(), 0.5); }catch(e){} },
-            playCorrect: function() { if(this.ready) try{ this.synths.correct.triggerAttackRelease(["C5", "E5", "G5"], "4n", Tone.now(), 0.5); }catch(e){} },
-            playWrong: function() { if(this.ready) try{ this.synths.wrong.triggerAttackRelease("C3", "8n", Tone.now(), 0.3); }catch(e){} },
-            toggleBGM: function(forcePlay = false) {
-                if(!this.ready || !this.bgmAudio) return;
-                try {
-                    if (this.bgmEnabled) {
-                        this.bgmAudio.play().catch(e => console.log("Gagal memutar BGM:", e));
-                    } else {
-                        this.bgmAudio.pause();
-                    }
-                } catch(e) {}
+            playBead() { if (this.initialized) this.beadSynth.triggerAttackRelease("C3", "32n"); },
+            playBtn() { if (this.initialized) this.btnSynth.triggerAttackRelease("C6", "32n"); },
+            playCorrect() { 
+                if (!this.initialized) return;
+                const now = Tone.now();
+                this.fxSynth.triggerAttackRelease(["C5", "E5", "G5"], "8n", now);
+                this.fxSynth.triggerAttackRelease(["C5", "E5", "C6"], "4n", now + 0.15);
+            },
+            playWrong() { 
+                if (!this.initialized) return;
+                const now = Tone.now();
+                this.fxSynth.triggerAttackRelease(["D4", "F4"], "8n", now);
+                this.fxSynth.triggerAttackRelease(["C#4", "E4"], "4n", now + 0.2);
+            },
+            setBgmMute(mute) {
+                this.isBgmMuted = mute;
+                if (this.initialized) {
+                    if (mute) Tone.Transport.pause();
+                    else { this.bgmSeq.start(0); Tone.Transport.start(); }
+                }
             }
         };
 
-        // Memastikan audio terpicu di sentuhan pertama layar
-        if (typeof window !== 'undefined') {
-            document.body.addEventListener('pointerdown', () => {
-                if (!audioEngine.ready) {
-                    audioEngine.init().then(() => {
-                        if(audioEngine.bgmEnabled) audioEngine.toggleBGM();
-                    });
-                }
-            }, { once: true });
-        }
-
-        // --- ICONS ---
-        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
-        const IconHistory = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path></svg>;
-        const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
-        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconPlay = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
+        const IconHistory = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"></path><path d="M12 7v5l4 2"></path></svg>;
+        const IconClock = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
         const IconRefresh = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>;
-        const IconArrowRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
-        const IconArrowLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
+        const IconArrowRight = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>;
+        const IconArrowLeft = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
         const IconBack = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>;
-        const IconBook = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconBook = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>;
         const IconLightbulb = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 1 0 6 8c0 1.45.62 2.84 1.5 3.5.76.75 1.23 1.51 1.41 2.5"></path></svg>;
-        const IconSpeakerOn = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>;
-        const IconSpeakerOff = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>;
-        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconSkip = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line></svg>;
+        const IconSoundOn = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>;
+        const IconSoundOff = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="1" x2="1" y2="23"></line></svg>;
 
         const BEAD_THEMES = [
             { id: 'emerald', label: 'Hijau', classes: 'bg-emerald-400' },
@@ -194,25 +181,23 @@
             { id: 'navy', label: 'Navy', classes: 'bg-indigo-900', div: 'bg-black', rod: 'bg-indigo-200' }
         ];
 
-        // --- ABACUS COMPONENTS ---
         const Bead = ({ type, isActive, index, onClick, beadTheme }) => {
             let transformY = 0;
-            // PANEL DIBESARKAN KE ATAS DAN BAWAH (MUDAH UNTUK JEMPOL)
             if (type === 'top') {
-                transformY = isActive ? 45 : 5; 
+                transformY = isActive ? 26 : 4; 
             } else {
                 if (isActive) {
-                    transformY = 5 + (index - 1) * 32; 
+                    transformY = 4 + (index - 1) * 26; 
                 } else {
-                    transformY = 170 - 5 - (4 - index) * 32 - 32; 
+                    transformY = 136 - 4 - (4 - index) * 26 - 26; 
                 }
             }
 
             return (
                 <div 
-                    onPointerDown={(e) => { e.preventDefault(); onClick(); }}
-                    className={`absolute w-[52px] h-[32px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
-                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-26px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
+                    onPointerDown={(e) => { e.preventDefault(); onClick(); SoundEngine.playBead(); }}
+                    className={`absolute w-12 h-[26px] rounded-full cursor-pointer bead-transition z-10 bead-candy hover:brightness-110 active:brightness-95 ${beadTheme.classes}`}
+                    style={{ transform: `translateY(${transformY}px)`, left: '50%', marginLeft: '-24px', backgroundColor: beadTheme.classes.replace('bg-', '') }}
                 />
             );
         };
@@ -221,30 +206,17 @@
             const topActive = value >= 5;
             const bottomActiveCount = value % 5;
 
-            const handleTopClick = () => {
-                if(isReadonly) return;
-                audioEngine.playBead();
-                onChange(topActive ? value - 5 : value + 5);
-            };
-
-            const handleBottomClick = (beadIndex) => {
-                if(isReadonly) return;
-                audioEngine.playBead();
-                onChange((topActive ? 5 : 0) + (beadIndex <= bottomActiveCount ? beadIndex - 1 : beadIndex));
-            };
+            const handleTopClick = () => { if(!isReadonly) onChange(topActive ? value - 5 : value + 5); };
+            const handleBottomClick = (beadIndex) => { if(!isReadonly) onChange((topActive ? 5 : 0) + (beadIndex <= bottomActiveCount ? beadIndex - 1 : beadIndex)); };
 
             return (
-                <div className={`flex flex-col items-center w-[56px] h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
-                    <div className={`absolute top-0 bottom-0 w-2.5 rounded-full z-0 left-1/2 -ml-[5px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
-                    
-                    {/* PANEL LEBIH TINGGI */}
-                    <div className="relative w-full h-[80px]">
+                <div className={`flex flex-col items-center w-[50px] h-full relative transition-all duration-300 rounded-full ${isHighlighted ? 'bg-amber-300/40 ring-4 ring-amber-400/50' : ''}`}>
+                    <div className={`absolute top-0 bottom-0 w-2 rounded-full z-0 left-1/2 -ml-[4px] shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] ${themeConfig.board.rod}`}></div>
+                    <div className="relative w-full h-[56px]">
                         <Bead type="top" isActive={topActive} onClick={handleTopClick} beadTheme={themeConfig.bead} />
                     </div>
-                    
-                    <div className="w-full h-[15px]"></div>
-                    
-                    <div className="relative w-full h-[170px]">
+                    <div className="w-full h-[10px]"></div>
+                    <div className="relative w-full h-[136px]">
                         {[1, 2, 3, 4].map(idx => (
                             <Bead key={`bottom-${idx}`} type="bottom" index={idx} isActive={idx <= bottomActiveCount} onClick={() => handleBottomClick(idx)} beadTheme={themeConfig.bead} />
                         ))}
@@ -266,9 +238,8 @@
             };
 
             return (
-                <div className={`w-full p-2 rounded-[1.5rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
-                    {/* Pembatas diturunkan mengikuti perbesaran panel atas */}
-                    <div className={`absolute top-[88px] left-0 right-0 h-[10px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
+                <div className={`w-full p-3 rounded-[2rem] abacus-frame relative ${bTheme.classes} ${isReadonly ? 'opacity-95' : ''}`}>
+                    <div className={`absolute top-[68px] left-0 right-0 h-[10px] z-20 shadow-[0_4px_6px_rgba(0,0,0,0.3)] border-y border-white/20 ${bTheme.div}`}></div>
                     <div className="flex justify-between items-center w-full px-1">
                         {values.map((val, idx) => (
                             <AbacusColumn key={idx} value={val} onChange={(newVal) => handleColChange(idx, newVal)} themeConfig={themeConfig} isHighlighted={highlightCols.includes(idx)} isReadonly={isReadonly} />
@@ -278,91 +249,95 @@
             );
         };
 
-        const PBtn = ({ onClick, children, className, title, disabled }) => (
-            <button 
-                title={title}
-                disabled={disabled}
-                className={`btn-push ${className}`}
-                onClick={(e) => { audioEngine.playClick(); if(onClick) onClick(e); }}
-            >
-                {children}
-            </button>
-        );
+        const ConfirmDialog = ({ isOpen, title, message, onConfirm, onCancel }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-[fadeIn_0.2s]">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-2xl w-full max-w-sm animate-pop text-center">
+                        <div className="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4"><IconTrash /></div>
+                        <h3 className="text-xl font-extrabold text-slate-800 mb-2">{title}</h3>
+                        <p className="text-slate-500 font-semibold mb-6">{message}</p>
+                        <div className="flex gap-3">
+                            <button onClick={onCancel} className="flex-1 py-3 rounded-2xl font-bold bg-slate-100 text-slate-600 btn-push shadow-[0_4px_0_#cbd5e1] active:translate-y-1">Batal</button>
+                            <button onClick={onConfirm} className="flex-1 py-3 rounded-2xl font-bold bg-rose-500 text-white btn-push shadow-[0_4px_0_#be123c] active:translate-y-1">Ya, Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
-        // --- MENUS ---
-        const MainMenu = ({ onStart, onOpenHistory, onOpenTutorial, theme, updateTheme, isMuted, toggleMute }) => {
+        const MainMenu = ({ onStart, onOpenHistory, onOpenTutorial, theme, updateTheme, isMuted, onToggleMute }) => {
             const [operation, setOperation] = useState('+');
             const [placeValue, setPlaceValue] = useState('satuan');
             const [rowCount, setRowCount] = useState(2);
 
             return (
-                <div className="flex flex-col h-full bg-gradient-to-b from-transparent to-white/50">
-                    <div className="absolute top-4 right-4 z-20">
-                        <PBtn onClick={toggleMute} className="p-3 bg-white/80 backdrop-blur rounded-full shadow-md text-slate-600">
-                            {isMuted ? <IconSpeakerOff /> : <IconSpeakerOn />}
-                        </PBtn>
-                    </div>
+                <div className="flex flex-col h-full bg-gradient-to-b from-transparent to-white/50 relative">
+                    <button onClick={onToggleMute} className="absolute top-4 right-4 p-2.5 bg-white/80 rounded-full shadow-sm text-sky-500 z-50 btn-push border border-white">
+                        {isMuted ? <IconSoundOff /> : <IconSoundOn />}
+                    </button>
 
-                    <div className="text-center mt-10 mb-6 px-4 animate-pop">
-                        <div className="inline-block p-4 px-8 bg-white rounded-[2rem] shadow-xl border-4 border-sky-100 transform -rotate-2 relative">
-                            <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 tracking-widest drop-shadow-sm">SOROBAN</h1>
-                            <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-max">
-                                <p className="text-sky-700 font-extrabold text-[13px] bg-sky-100 px-4 py-1.5 rounded-full shadow-md border-2 border-white uppercase tracking-wider">Ayo Belajar Sempoa! ✨</p>
-                            </div>
+                    <div className="text-center mt-10 mb-4 px-4 animate-float flex flex-col items-center">
+                        <div className="inline-block p-3 px-6 bg-white rounded-[1.5rem] shadow-lg border-4 border-sky-100 transform -rotate-2 text-center">
+                            <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400 tracking-wide leading-none">SOROBAN</h1>
+                            <p className="text-sky-500 font-extrabold mt-1 text-[11px] uppercase tracking-widest">Ayo Belajar Sempoa! ✨</p>
                         </div>
                     </div>
 
-                    <div className="flex-1 space-y-5 overflow-y-auto px-4 pb-4 mt-6">
-                        <div className="glass-card p-5 rounded-[1.5rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-sky-100 text-sky-600 p-1.5 rounded-lg">⚙️</span> Operasi</label>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[{ id: '+', label: '+ Tambah' }, { id: '-', label: '- Kurang' }, { id: '*', label: '× Kali' }, { id: '/', label: '÷ Bagi' }, { id: 'mix+-', label: 'Campur (+ & -)' }, { id: 'mixAll', label: 'Semua (✨)' }].map(op => (
-                                    <PBtn key={op.id} onClick={() => setOperation(op.id)} className={`py-3 px-1 rounded-xl font-black transition-all text-[15px] ${operation === op.id ? 'bg-sky-500 text-white shadow-[0_4px_0_#0284c7] scale-[1.02]' : 'bg-slate-50 text-slate-600 border-2 border-slate-200 shadow-[0_4px_0_#e2e8f0]'}`}>{op.label}</PBtn>
+                    <div className="flex-1 space-y-3 overflow-y-auto px-4 pb-4">
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-2 text-base"><span className="bg-sky-100 text-sky-600 p-1 rounded-lg">⚙️</span> Tipe Operasi</label>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[{ id: '+', label: 'Tambah (+)' }, { id: '-', label: 'Kurang (-)' }, { id: '*', label: 'Kali (×)' }, { id: '/', label: 'Bagi (÷)' }, { id: 'mix+-', label: 'Campur (+ -)' }, { id: 'mixAll', label: 'Semua (✨)' }].map(op => (
+                                    <button key={op.id} onClick={() => setOperation(op.id)} className={`py-2 px-2 rounded-xl font-bold text-sm transition-all btn-push ${operation === op.id ? 'bg-sky-500 text-white shadow-[0_3px_0_#0284c7]' : 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100'}`}>{op.label}</button>
                                 ))}
                             </div>
                         </div>
 
-                        <div className="glass-card p-5 rounded-[1.5rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-amber-100 text-amber-600 p-1.5 rounded-lg">🔢</span> Maksimal</label>
-                            <div className="grid grid-cols-3 gap-3">
-                                {[{ id: 'satuan', label: 'Satuan' }, { id: 'puluhan', label: 'Puluhan' }, { id: 'ratusan', label: 'Ratusan' }].map(pv => (
-                                    <PBtn key={pv.id} onClick={() => setPlaceValue(pv.id)} className={`py-3 flex justify-center items-center rounded-xl transition-all ${placeValue === pv.id ? 'bg-amber-400 text-amber-900 shadow-[0_4px_0_#d97706] scale-[1.02]' : 'bg-slate-50 text-slate-600 border-2 border-slate-200 shadow-[0_4px_0_#e2e8f0]'}`}>
-                                        <span className="font-black text-sm">{pv.label}</span>
-                                    </PBtn>
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-2 text-base"><span className="bg-amber-100 text-amber-600 p-1 rounded-lg">🔢</span> Nilai Maksimal</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                {[{ id: 'satuan', label: 'Satuan', val: '1-9' }, { id: 'puluhan', label: 'Puluhan', val: '10-99' }, { id: 'ratusan', label: 'Ratusan', val: 'Ratus' }].map(pv => (
+                                    <button key={pv.id} onClick={() => setPlaceValue(pv.id)} className={`py-2 flex flex-col items-center justify-center rounded-xl transition-all btn-push ${placeValue === pv.id ? 'bg-amber-400 text-amber-900 shadow-[0_3px_0_#d97706]' : 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100'}`}>
+                                        <span className="font-extrabold text-xs">{pv.label}</span>
+                                        <span className="text-[10px] opacity-70 font-semibold">{pv.val}</span>
+                                    </button>
                                 ))}
                             </div>
                         </div>
 
                         {['+', '-', 'mix+-'].includes(operation) && (
-                            <div className="glass-card p-5 rounded-[1.5rem] animate-pop">
-                                <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-rose-100 text-rose-600 p-1.5 rounded-lg">📊</span> Baris Soal</label>
-                                <div className="flex justify-between gap-3">
+                            <div className="glass-card p-4 rounded-[1.5rem] animate-pop">
+                                <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-2 text-base"><span className="bg-rose-100 text-rose-600 p-1 rounded-lg">📊</span> Jumlah Baris</label>
+                                <div className="flex justify-between gap-2">
                                     {[2, 3, 4, 5].map(num => (
-                                        <PBtn key={num} onClick={() => setRowCount(num)} className={`flex-1 py-3 rounded-xl font-black text-xl transition-all ${rowCount === num ? 'bg-rose-400 text-white shadow-[0_4px_0_#e11d48] scale-[1.02]' : 'bg-slate-50 text-slate-600 border-2 border-slate-200 shadow-[0_4px_0_#e2e8f0]'}`}>{num}</PBtn>
+                                        <button key={num} onClick={() => setRowCount(num)} className={`flex-1 py-2 rounded-xl font-black text-lg transition-all btn-push ${rowCount === num ? 'bg-rose-400 text-white shadow-[0_3px_0_#e11d48]' : 'bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100'}`}>{num}</button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
-                        <div className="glass-card p-5 rounded-[1.5rem]">
-                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-3 text-base"><span className="bg-violet-100 text-violet-600 p-1.5 rounded-lg">🎨</span> Tema</label>
-                            <div className="mb-2">
-                                <div className="flex gap-3 overflow-x-auto py-2 px-2">
-                                    {BEAD_THEMES.map(bt => <PBtn key={bt.id} onClick={() => updateTheme('bead', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-full transition-all ${bt.classes} ${theme.bead === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.2)] opacity-80'}`} title={bt.label} /> )}
+                        <div className="glass-card p-4 rounded-[1.5rem]">
+                            <label className="flex items-center gap-2 text-slate-700 font-extrabold mb-2 text-base"><span className="bg-violet-100 text-violet-600 p-1 rounded-lg">🎨</span> Tampilan</label>
+                            <div className="mb-1">
+                                <span className="text-xs font-bold text-slate-500 mb-1 block">Warna Biji:</span>
+                                <div className="flex gap-3 overflow-x-auto py-2.5 px-3">
+                                    {BEAD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('bead', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-full btn-push transition-all ${bt.classes} ${theme.bead === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.2)] opacity-80'}`} title={bt.label} /> )}
                                 </div>
                             </div>
                             <div>
-                                <div className="flex gap-3 overflow-x-auto py-2 px-2">
-                                    {BOARD_THEMES.map(bt => <PBtn key={bt.id} onClick={() => updateTheme('board', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-lg transition-all ${bt.classes} ${theme.board === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.3)] opacity-80'}`} title={bt.label} /> )}
+                                <span className="text-xs font-bold text-slate-500 mb-1 block">Warna Papan:</span>
+                                <div className="flex gap-3 overflow-x-auto py-2.5 px-3">
+                                    {BOARD_THEMES.map(bt => <button key={bt.id} onClick={() => updateTheme('board', bt.id)} className={`flex-shrink-0 w-6 h-6 rounded-lg btn-push transition-all ${bt.classes} ${theme.board === bt.id ? 'ring-2 ring-offset-2 ring-violet-400 scale-125 shadow-none' : 'shadow-[0_2px_0_rgba(0,0,0,0.3)] opacity-80'}`} title={bt.label} /> )}
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-3 nav-safe bg-white/80 backdrop-blur-md border-t border-white rounded-t-2xl flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] z-10 mt-auto">
-                        <PBtn onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold shadow-[0_3px_0_#cbd5e1] flex items-center justify-center"><IconHistory /></PBtn>
-                        <PBtn onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-3 rounded-xl font-bold shadow-[0_3px_0_#b45309] flex items-center justify-center"><IconBook /></PBtn>
-                        <PBtn onClick={() => onStart({ operation, placeValue, rowCount })} className="flex-1 bg-emerald-400 text-white py-3 rounded-xl font-black text-lg shadow-[0_4px_0_#059669] flex justify-center items-center gap-2"><IconPlay /> MULAI</PBtn>
+                    <div className="p-4 bg-white/80 backdrop-blur-md border-t border-white rounded-t-[1.5rem] flex gap-2 shadow-[0_-5px_15px_rgba(0,0,0,0.03)] z-10">
+                        <button onClick={onOpenHistory} className="bg-slate-100 text-slate-600 p-3 rounded-xl font-bold shadow-[0_3px_0_#cbd5e1] btn-push flex items-center justify-center"><IconHistory /></button>
+                        <button onClick={onOpenTutorial} className="bg-amber-300 text-amber-900 p-3 rounded-xl font-bold shadow-[0_3px_0_#b45309] btn-push flex items-center justify-center"><IconBook /></button>
+                        <button onClick={() => onStart({ operation, placeValue, rowCount })} className="flex-1 bg-emerald-400 text-white py-3 rounded-xl font-black text-lg shadow-[0_4px_0_#059669] btn-push flex justify-center items-center gap-2"><IconPlay /> MULAI</button>
                     </div>
                 </div>
             );
@@ -447,7 +422,8 @@
                 const isCorrect = userAns === question.expected;
                 setIsPlaying(false);
                 setFeedback(isCorrect ? 'correct' : 'wrong');
-                if(isCorrect) audioEngine.playCorrect(); else audioEngine.playWrong();
+                if (isCorrect) SoundEngine.playCorrect();
+                else SoundEngine.playWrong();
                 saveHistory({ questionStr: question.rows.join('  |  '), expected: question.expected, userAns: userAns, isCorrect: isCorrect, time: time, date: new Date().toISOString() });
             };
 
@@ -455,43 +431,42 @@
 
             return (
                 <div className="flex flex-col h-full bg-gradient-to-b from-transparent to-white/50">
-                    <div className="flex justify-between items-center p-3 bg-white/80 backdrop-blur-md shadow-sm border-b border-white z-10">
-                        <PBtn onClick={onBack} className="p-2 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full shadow-[0_2px_0_#cbd5e1]"><IconBack /></PBtn>
+                    <div className="flex justify-between items-center p-2 bg-white/80 backdrop-blur-md shadow-sm border-b border-white z-10">
+                        <button onClick={onBack} className="p-2 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
                         <div className="flex items-center gap-2 font-black text-slate-700 bg-white border border-slate-100 px-3 py-1 rounded-xl shadow-sm text-sm"><span className="text-amber-500"><IconClock /></span> {formatTime(time)}</div>
-                        <div className="w-8"></div> 
+                        <div className="w-10"></div> 
                     </div>
 
-                    <div className="flex-1 flex flex-col items-center justify-center px-4 py-2">
-                        <div className="bg-slate-800 p-3 rounded-2xl shadow-lg border-[3px] border-slate-700 w-full max-w-[200px] relative">
+                    <div className="flex-1 flex flex-col items-center justify-center p-1">
+                        <div className="bg-slate-800 p-2.5 rounded-2xl shadow-lg border-4 border-slate-700 w-full max-w-[160px] relative">
                             <div className="absolute -top-2 left-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
                             <div className="absolute -top-2 right-4 w-2 h-4 bg-amber-400 rounded-full shadow-sm"></div>
-                            <div className="flex flex-col items-end text-2xl font-black text-white font-mono tracking-wider leading-[1.1]">
+                            <div className="flex flex-col items-end text-xl font-black text-white font-mono tracking-wider leading-tight">
                                 {question.rows.map((row, idx) => (
                                     <div key={idx} className={`${idx === question.rows.length - 1 ? 'border-b-2 border-slate-500 pb-1 mb-1 w-full text-right' : ''}`}>{row}</div>
                                 ))}
                             </div>
-                            <div className="mt-1 h-6 flex items-center justify-center bg-slate-900/50 rounded-lg">
-                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-xs animate-pop drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
-                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-xs animate-pop drop-shadow-[0_1px_1px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
+                            <div className="mt-1.5 h-5 flex items-center justify-center bg-slate-900/50 rounded-lg">
+                                {feedback === 'correct' && <div className="text-emerald-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">BENAR! 🎉</div>}
+                                {feedback === 'wrong' && <div className="text-rose-400 font-black text-[11px] animate-pop drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">COBA LAGI 😅</div>}
                             </div>
                         </div>
                     </div>
 
-                    <div className="p-3 nav-safe bg-white/90 backdrop-blur-md rounded-t-[1.5rem] shadow-[0_-10px_20px_rgba(0,0,0,0.05)] border-t border-white mt-auto">
+                    <div className="p-2 bg-white/90 backdrop-blur-md rounded-t-[1.5rem] shadow-[0_-10px_20px_rgba(0,0,0,0.05)] border-t border-white">
                         <div className="text-center mb-1">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full">Nilai Sempoa</span>
                             <div className="text-lg font-black text-sky-500 leading-none mt-1">{getNumericValue()}</div>
                         </div>
                         <Abacus values={abacusValues} setValues={setAbacusValues} theme={theme} isReadonly={!isPlaying} />
-                        
-                        <div className="flex gap-2 mt-3 mb-1">
+                        <div className="flex gap-2 mt-2 mb-1">
                             {isPlaying ? (
                                 <>
-                                    <PBtn onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-amber-100 text-amber-600 px-3 py-2 rounded-xl font-bold shadow-[0_3px_0_#fcd34d] flex justify-center items-center"><IconRefresh /></PBtn>
-                                    <PBtn onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] flex justify-center items-center gap-2"><IconCheck /> CEK</PBtn>
+                                    <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-amber-100 text-amber-600 px-3 py-1.5 rounded-xl font-bold btn-push shadow-[0_3px_0_#fcd34d] flex justify-center items-center"><IconRefresh /></button>
+                                    <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-1.5 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] btn-push flex justify-center items-center gap-2"><IconCheck /> CEK</button>
                                 </>
                             ) : (
-                                <PBtn onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-2 rounded-xl font-black text-sm shadow-[0_3px_0_#059669] flex justify-center items-center gap-2 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></PBtn>
+                                <button onClick={loadNewQuestion} className="flex-1 bg-emerald-400 text-white py-1.5 rounded-xl font-black text-sm shadow-[0_3px_0_#059669] btn-push flex justify-center items-center gap-2 animate-[pulse_2s_infinite]">LANJUT <IconArrowRight /></button>
                             )}
                         </div>
                     </div>
@@ -499,29 +474,246 @@
             );
         };
 
-        const numToAbacusArr = (num) => num.toString().padStart(6, '0').split('').map(Number);
+        const HistoryScreen = ({ history, onBack, onClear }) => {
+            return (
+                <div className="flex flex-col h-full bg-slate-50">
+                    <div className="flex justify-between items-center p-4 bg-white shadow-sm border-b-2 border-slate-100 z-10">
+                        <button onClick={onBack} className="p-2.5 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
+                        <h2 className="font-black text-xl text-slate-700">Riwayat</h2>
+                        <button onClick={onClear} className="p-2.5 text-rose-500 bg-rose-100 hover:bg-rose-200 rounded-full btn-push shadow-[0_2px_0_#fecdd3]"><IconTrash /></button>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                        {history.length === 0 ? (
+                            <div className="text-center text-slate-400 mt-20 flex flex-col items-center">
+                                <div className="bg-slate-100 p-5 rounded-full mb-3"><IconHistory /></div>
+                                <p className="font-extrabold text-base">Belum ada riwayat.</p>
+                                <p className="font-semibold mt-1 text-sm">Ayo mulai bermain!</p>
+                            </div>
+                        ) : (
+                            history.slice().reverse().map((item, idx) => (
+                                <div key={idx} className={`p-4 rounded-2xl border-2 ${item.isCorrect ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100'}`}>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div className="font-mono font-black text-slate-700 text-sm whitespace-pre-wrap leading-relaxed">{item.questionStr.replace(/ {2}\| {2}/g, '\n')}</div>
+                                        <div className={`font-black px-3 py-1 rounded-full text-xs ${item.isCorrect ? 'bg-emerald-200 text-emerald-800' : 'bg-rose-200 text-rose-800'}`}>{item.isCorrect ? 'BENAR' : 'SALAH'}</div>
+                                    </div>
+                                    <div className="flex justify-between items-end text-sm mt-3 pt-3 border-t-2 border-black/5">
+                                        <div>
+                                            <p className="text-slate-500 font-bold text-xs">Jawaban: <span className="font-black text-slate-800 text-sm">{item.expected}</span></p>
+                                            {!item.isCorrect && <p className="text-rose-500 font-bold text-xs">Terjawab: <span className="font-black text-sm">{item.userAns}</span></p>}
+                                        </div>
+                                        <div className="flex items-center text-slate-500 font-bold bg-white px-2 py-1 rounded-lg shadow-sm gap-1 text-xs"><span className="text-amber-500"><IconClock /></span> {formatTime(item.time)}</div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            );
+        };
 
         const TUTORIAL_DATA = [
-            { id: 'intro', title: 'Kenalan Sempoa', icon: '🎯', color: 'text-sky-500 bg-sky-100 border-sky-300', steps: [{ text: 'Tiang paling kanan adalah Satuan.', val: 0, hl: [5] }, { text: 'Ke kiri berurutan: Puluhan, Ratusan, Ribuan...', val: 0, hl: [0,1,2,3,4] }, { text: 'Biji yang merapat ke tengah bernilai aktif.', val: 123456, hl: [] }], practice: [{ q: 'Tunjukkan angka 5!', expected: 5, hint: 'Geser 1 biji atas (bernilai 5) di tiang kanan ke bawah.' }] },
-            { id: 'sk', title: 'Sahabat Kecil', icon: '🖐️', color: 'text-teal-500 bg-teal-100 border-teal-300', steps: [{ text: 'Dipakai saat butuh bantuan angka 5. 1↔4, 2↔3.', val: 0, hl: [] }, { text: 'Tambah: +1 = +5-4 | Kurang: -1 = -5+4', val: 0, hl: [] }, { text: 'Contoh: 4 + 1. Atur sempoa ke 4.', val: 4, hl: [5] }, { text: 'Gunakan +5 -4 (Turunkan 5, Turunkan 4). Hasil 5.', val: 5, hl: [5] }], practice: [{ q: 'Hitung: 4 + 1', expected: 5, hint: 'Gunakan +5 -4' }, { q: 'Hitung: 5 - 2', expected: 3, hint: 'Gunakan -5 +3' }] },
-            { id: 'sb', title: 'Sahabat Besar', icon: '🤝', color: 'text-blue-500 bg-blue-100 border-blue-300', steps: [{ text: 'Dipakai saat lewat angka 9. Buat angka 10. 1↔9, 5↔5.', val: 0, hl: [] }, { text: 'Contoh: 8 + 4. Atur sempoa ke 8.', val: 8, hl: [5] }, { text: 'Tak cukup. Sahabat besar 4 adalah 6 (+10 -6).', val: 8, hl: [5] }, { text: 'Naikkan 1 puluhan, buang 6 satuan. Hasil 12.', val: 12, hl: [4, 5] }], practice: [{ q: 'Hitung: 8 + 4', expected: 12, hint: 'Gunakan +10 -6' }] }
+            {
+                id: 'intro', title: 'Pengenalan Sempoa', icon: '🎯', color: 'text-sky-500 bg-sky-100 border-sky-300',
+                steps: [
+                    { text: 'Selamat datang! Sempoa ini memiliki 6 tiang (kolom).', val: 0, hl: [0,1,2,3,4,5] },
+                    { text: 'Tiang paling kanan adalah kolom Satuan.', val: 0, hl: [5] },
+                    { text: 'Ke kiri berurutan adalah Puluhan, Ratusan, Ribuan, Puluh Ribuan, & Ratus Ribuan.', val: 0, hl: [0,1,2,3,4] },
+                    { text: 'Biji sempoa yang merapat ke garis tengah berarti aktif dan bernilai.', val: 123456, hl: [0,1,2,3,4,5] },
+                    { text: 'Nilai dibaca dari kiri ke kanan. Ini bernilai 123.456', val: 123456, hl: [] }
+                ],
+                practice: [
+                    { q: 'Tunjukkan angka 5 di sempoa!', expected: 5, hint: 'Geser 1 biji bagian atas (bernilai 5) pada kolom paling kanan ke arah tengah.' },
+                    { q: 'Sekarang, bentuk angka 12.', expected: 12, hint: '1 di kolom puluhan (kedua dari kanan), 2 di kolom satuan (paling kanan).' }
+                ]
+            },
+            {
+                id: 'sahabat_kecil', title: 'Sahabat Kecil', icon: '🖐️', color: 'text-teal-500 bg-teal-100 border-teal-300',
+                steps: [
+                    { text: 'Sahabat kecil digunakan saat butuh bantuan angka 5. Pasangannya: 1 ↔ 4, dan 2 ↔ 3.', val: 0, hl: [] },
+                    { text: 'Rumus Tambah (+): +1 = +5-4 | +2 = +5-3 | +3 = +5-2 | +4 = +5-1', val: 0, hl: [] },
+                    { text: 'Contoh: 4 + 1. Atur sempoa menjadi 4.', val: 4, hl: [5] },
+                    { text: 'Ingin tambah 1, tapi biji bawah penuh. Gunakan sahabat kecil 1 yaitu 4 (+5 -4).', val: 4, hl: [5] },
+                    { text: 'Tambahkan 5 (turunkan biji atas), kurangi 4 (turunkan biji bawah). Hasilnya 5.', val: 5, hl: [5] },
+                    { text: 'Rumus Kurang (-): -1 = -5+4 | -2 = -5+3 | -3 = -5+2 | -4 = -5+1', val: 0, hl: [] },
+                    { text: 'Contoh: 5 - 1. Atur sempoa menjadi 5.', val: 5, hl: [5] },
+                    { text: 'Tidak ada biji bawah untuk dikurang. Gunakan sahabat kecil 1 yaitu 4 (-5 +4).', val: 5, hl: [5] },
+                    { text: 'Kurangi 5 (naikkan biji atas), tambah 4 (naikkan biji bawah). Hasilnya 4.', val: 4, hl: [5] }
+                ],
+                practice: [
+                    { q: 'Hitung: 4 + 1', expected: 5, hint: 'Untuk tambah 1, gunakan sahabat kecil: +5 -4.', successMsg: 'Benar! Kamu berhasil menggunakan kawan kecil.' },
+                    { q: 'Hitung: 3 + 2', expected: 5, hint: 'Untuk tambah 2, gunakan sahabat kecil: +5 -3.' },
+                    { q: 'Hitung: 5 - 1', expected: 4, hint: 'Untuk kurang 1, gunakan sahabat kecil: -5 +4.' },
+                    { q: 'Hitung: 6 - 3', expected: 3, hint: 'Untuk kurang 3, gunakan sahabat kecil: -5 +2.' }
+                ]
+            },
+            {
+                id: 'sahabat_besar', title: 'Sahabat Besar', icon: '🤝', color: 'text-blue-500 bg-blue-100 border-blue-300',
+                steps: [
+                    { text: 'Sahabat Besar dipakai saat hasil melewati angka 9. Tujuannya membuat angka 10.', val: 0, hl: [] },
+                    { text: 'Pasangannya (jumlahnya 10): 1↔9, 2↔8, 3↔7, 4↔6, 5↔5.', val: 0, hl: [] },
+                    { text: 'Rumus Tambah (+): +1=+10-9 | +2=+10-8 | +4=+10-6, dst.', val: 0, hl: [] },
+                    { text: 'Contoh: 8 + 4. Atur sempoa menjadi 8.', val: 8, hl: [5] },
+                    { text: 'Tambah 4 tak cukup (lewat 9). Sahabat besar 4 adalah 6. Gunakan +10 -6.', val: 8, hl: [5] },
+                    { text: 'Tambahkan 1 di puluhan (+10), kurangi 6 di satuan (-6). Hasilnya 12.', val: 12, hl: [4, 5] },
+                    { text: 'Rumus Kurang (-): -1=-10+9 | -2=-10+8 | -4=-10+6, dst.', val: 0, hl: [] },
+                    { text: 'Contoh: 12 - 4. Atur sempoa menjadi 12.', val: 12, hl: [4, 5] },
+                    { text: 'Satuan 2 tak cukup dikurang 4. Pinjam 1 dari puluhan (-10 +6).', val: 12, hl: [4, 5] },
+                    { text: 'Kurangi 1 di puluhan (-10), tambah sahabat besar 4 yaitu 6 di satuan (+6). Hasilnya 8.', val: 8, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Hitung: 8 + 4', expected: 12, hint: 'Untuk tambah 4, gunakan sahabat besar: +10 -6.', successMsg: 'Hebat! Kamu berhasil menggunakan sahabat besar.' },
+                    { q: 'Hitung: 7 + 5', expected: 12, hint: 'Untuk tambah 5, gunakan sahabat besar: +10 -5.' },
+                    { q: 'Hitung: 15 - 7', expected: 8, hint: 'Untuk kurang 7, gunakan sahabat besar: -10 +3.' },
+                    { q: 'Hitung: 17 - 8', expected: 9, hint: 'Untuk kurang 8, gunakan sahabat besar: -10 +2.' }
+                ]
+            },
+            {
+                id: 'aturan_tambah', title: 'Aturan Khusus +', icon: '🌟', color: 'text-orange-500 bg-orange-100 border-orange-300',
+                steps: [
+                    { text: 'Urutan cara: 1. Langsung ➡️ 2. Sahabat Kecil ➡️ 3. Sahabat Besar.', val: 0, hl: [] },
+                    { text: 'Contoh: 6 + 7. Atur sempoa menjadi 6.', val: 6, hl: [5] },
+                    { text: 'Ingin tambah 7 (lewat 9). Sahabat besar 7 adalah 3.', val: 6, hl: [5] },
+                    { text: 'Tambahkan 1 ke puluhan (+10), kurangi 3 dari satuan (-3). Hasilnya 13.', val: 13, hl: [4, 5] },
+                    { text: 'Contoh: 9 + 8. Atur sempoa menjadi 9.', val: 9, hl: [5] },
+                    { text: 'Tambah 8 (lewat 9). Sahabat besar 8 adalah 2 (+10 -2).', val: 9, hl: [5] },
+                    { text: 'Tambahkan 1 ke puluhan, kurangi 2 dari satuan. Hasilnya 17.', val: 17, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Hitung: 2 + 3', expected: 5, hint: 'Untuk tambah 3, gunakan sahabat kecil: +5 -2.', successMsg: 'Mantap! Soal ini menggunakan sahabat kecil.' },
+                    { q: 'Hitung: 8 + 7', expected: 15, hint: 'Melewati 9, gunakan sahabat besar 7 yaitu 3 (+10 -3).', successMsg: 'Benar! Soal ini menggunakan sahabat besar.' },
+                    { q: 'Hitung: 48 + 27', expected: 75, hint: 'Satuan 8+7 (simpan 1, tulis 5). Puluhan 4+2+1=7.' }
+                ]
+            },
+            {
+                id: 'aturan_kurang', title: 'Aturan Khusus -', icon: '💫', color: 'text-amber-500 bg-amber-100 border-amber-300',
+                steps: [
+                    { text: 'Gunakan saat biji satuan tidak cukup untuk dikurangi.', val: 0, hl: [] },
+                    { text: 'Urutan: 1. Langsung ➡️ 2. Sahabat Kecil ➡️ 3. Pinjam Puluhan.', val: 0, hl: [] },
+                    { text: 'Contoh: 13 - 7. Atur sempoa menjadi 13.', val: 13, hl: [4, 5] },
+                    { text: 'Satuan 3 tak cukup kurang 7. Sahabat besar 7 adalah 3. Gunakan -10 +3.', val: 13, hl: [4, 5] },
+                    { text: 'Pinjam 1 dari puluhan (-10), tambah 3 di satuan. Hasilnya 6.', val: 6, hl: [4, 5] },
+                    { text: 'Contoh: 17 - 8. Atur sempoa menjadi 17.', val: 17, hl: [4, 5] },
+                    { text: 'Satuan 7 tak cukup kurang 8. Sahabat besar 8 adalah 2. Gunakan -10 +2.', val: 17, hl: [4, 5] },
+                    { text: 'Pinjam 1 dari puluhan, tambah 2 di satuan. Hasilnya 9.', val: 9, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Hitung: 13 - 6', expected: 7, hint: 'Satuan tak cukup. Sahabat besar 6 adalah 4 (-10 +4).', successMsg: 'Benar! Soal ini menggunakan pinjam.' },
+                    { q: 'Hitung: 17 - 9', expected: 8, hint: 'Pinjam puluhan. Sahabat besar 9 adalah 1 (-10 +1).' },
+                    { q: 'Hitung: 72 - 48', expected: 24, hint: '2 tak cukup kurang 8. 12-8=4. Puluhan sisa 6-4=2.' }
+                ]
+            },
+            {
+                id: 'add', title: 'Penjumlahan Dasar', icon: '➕', color: 'text-emerald-500 bg-emerald-100 border-emerald-300',
+                steps: [
+                    { text: 'Tambahkan angka dengan menggeser biji ke garis tengah.', val: 0, hl: [] },
+                    { text: 'Contoh: 23 + 14', val: 0, hl: [] },
+                    { text: 'Atur sempoa menjadi 23 (2 puluhan, 3 satuan).', val: 23, hl: [4, 5] },
+                    { text: 'Tambahkan 1 di kolom puluhan.', val: 33, hl: [4] },
+                    { text: 'Lalu tambah 4 di satuan. (Gunakan sahabat kecil +5 -1).', val: 37, hl: [5] },
+                    { text: 'Hasil akhirnya: 37.', val: 37, hl: [] }
+                ],
+                practice: [
+                    { q: 'Hitung: 15 + 22', expected: 37, hint: 'Atur 15, lalu tambah 2 di puluhan, dan 2 di satuan.' },
+                    { q: 'Hitung: 150 + 25', expected: 175, hint: 'Atur 150. Tambah 2 di puluhan, 5 di satuan.' }
+                ]
+            },
+            {
+                id: 'sub', title: 'Pengurangan Dasar', icon: '➖', color: 'text-rose-500 bg-rose-100 border-rose-300',
+                steps: [
+                    { text: 'Kurangi angka dengan menjauhkan biji dari garis tengah.', val: 0, hl: [] },
+                    { text: 'Contoh: 56 - 23', val: 0, hl: [] },
+                    { text: 'Atur sempoa menjadi 56.', val: 56, hl: [4, 5] },
+                    { text: 'Kurangi 2 di kolom puluhan (5 - 2 = 3).', val: 36, hl: [4] },
+                    { text: 'Kurangi 3 di kolom satuan (6 - 3 = 3).', val: 33, hl: [5] },
+                    { text: 'Hasil akhirnya: 33.', val: 33, hl: [] }
+                ],
+                practice: [
+                    { q: 'Hitung: 45 - 21', expected: 24, hint: 'Atur 45. Kurangi 2 di puluhan, 1 di satuan.' },
+                    { q: 'Hitung: 58 - 35', expected: 23, hint: 'Atur 58. Kurangi 3 di puluhan, 5 di satuan.' }
+                ]
+            },
+            {
+                id: 'mul', title: 'Perkalian', icon: '✖️', color: 'text-indigo-500 bg-indigo-100 border-indigo-300',
+                steps: [
+                    { text: 'Perkalian adalah penjumlahan berulang.', val: 0, hl: [] },
+                    { text: 'Contoh 1: 4 × 3', val: 0, hl: [] },
+                    { text: 'Artinya: 4 + 4 + 4 = 12.', val: 0, hl: [] },
+                    { text: 'Atur 12 di sempoa.', val: 12, hl: [4, 5] },
+                    { text: 'Contoh 2: 24 × 3', val: 0, hl: [] },
+                    { text: 'Pecah: 20 × 3 = 60. Dan 4 × 3 = 12.', val: 0, hl: [] },
+                    { text: 'Jumlahkan: 60 + 12 = 72.', val: 72, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Berapa 5 × 4 ?', expected: 20, hint: '5 + 5 + 5 + 5 = 20. Atur angka 2 di puluhan.' },
+                    { q: 'Berapa 11 × 3 ?', expected: 33, hint: '10x3 = 30. 1x3 = 3. 30+3 = 33.' }
+                ]
+            },
+            {
+                id: 'div', title: 'Pembagian', icon: '➗', color: 'text-purple-500 bg-purple-100 border-purple-300',
+                steps: [
+                    { text: 'Pembagian adalah membagi angka ke dalam kelompok.', val: 0, hl: [] },
+                    { text: 'Contoh 1: 12 ÷ 3', val: 0, hl: [] },
+                    { text: '12 dibagi 3 kelompok. Tiap kelompok berisi 4.', val: 0, hl: [] },
+                    { text: 'Atur 4 di sempoa.', val: 4, hl: [5] },
+                    { text: 'Contoh 2: 144 ÷ 12', val: 0, hl: [] },
+                    { text: 'Angka dikali 12 hasilnya 144 adalah 12.', val: 0, hl: [] },
+                    { text: 'Atur 12 di sempoa.', val: 12, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Berapa 15 ÷ 3 ?', expected: 5, hint: 'Berapa dikali 3 hasilnya 15? Benar, 5. Atur 5 di satuan.' },
+                    { q: 'Berapa 100 ÷ 10 ?', expected: 10, hint: 'Berapa kali 10 agar jadi 100? Benar, 10. Atur 1 di puluhan.' }
+                ]
+            },
+            {
+                id: 'mix1', title: 'Campuran + dan -', icon: '⚖️', color: 'text-fuchsia-500 bg-fuchsia-100 border-fuchsia-300',
+                steps: [
+                    { text: 'Hitung berurutan dari atas ke bawah.', val: 0, hl: [] },
+                    { text: 'Soal: 35 + 12 - 20', val: 0, hl: [] },
+                    { text: 'Langkah 1: Atur sempoa menjadi 35.', val: 35, hl: [4, 5] },
+                    { text: 'Langkah 2: Tambahkan 12. (Hasil: 47)', val: 47, hl: [4, 5] },
+                    { text: 'Langkah 3: Kurangi 20. (Hasil: 27)', val: 27, hl: [4] }
+                ],
+                practice: [
+                    { q: 'Hitung: 50 + 20 - 30', expected: 40, hint: '50 tambah 20 jadi 70. Lalu 70 kurang 30 jadi 40.' },
+                    { q: 'Hitung: 100 - 40 + 15', expected: 75, hint: '100 - 40 = 60. 60 + 15 = 75.' }
+                ]
+            },
+            {
+                id: 'mix2', title: 'Campuran Semua', icon: '✨', color: 'text-rose-500 bg-rose-100 border-rose-300',
+                steps: [
+                    { text: 'Aturan: Hitung Perkalian (×) dan Pembagian (÷) terlebih dahulu!', val: 0, hl: [] },
+                    { text: 'Soal 1: 20 + 4 × 3', val: 0, hl: [] },
+                    { text: 'Hitung 4 × 3 = 12.', val: 0, hl: [] },
+                    { text: 'Lalu hitung 20 + 12 = 32. Atur 32.', val: 32, hl: [4, 5] },
+                    { text: 'Soal 2: 100 - 24 ÷ 6', val: 0, hl: [] },
+                    { text: 'Hitung 24 ÷ 6 = 4.', val: 0, hl: [] },
+                    { text: 'Lalu 100 - 4 = 96. Atur 96.', val: 96, hl: [4, 5] }
+                ],
+                practice: [
+                    { q: 'Hitung: 10 + 5 × 2', expected: 20, hint: 'Hitung 5x2 dulu (10). Lalu 10 + 10 = 20.' },
+                    { q: 'Hitung: 50 - 20 ÷ 2', expected: 40, hint: 'Hitung 20÷2 dulu (10). Lalu 50 - 10 = 40.' }
+                ]
+            }
         ];
 
+        const numToAbacusArr = (num) => num.toString().padStart(6, '0').split('').map(Number);
+        
         const TutorialMenu = ({ onSelect, onBack }) => (
             <div className="flex flex-col h-full bg-slate-50">
-                <div className="flex items-center p-3 bg-white shadow-sm border-b border-slate-100 z-10 gap-3">
-                    <PBtn onClick={onBack} className="p-2 text-slate-500 bg-slate-100 rounded-full shadow-[0_2px_0_#cbd5e1]"><IconBack /></PBtn>
-                    <h2 className="font-black text-xl text-slate-700">Pilih Pelajaran</h2>
+                <div className="flex items-center p-4 bg-white shadow-sm border-b-2 border-slate-100 z-10 gap-3">
+                    <button onClick={onBack} className="p-2.5 text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full btn-push shadow-[0_2px_0_#cbd5e1]"><IconBack /></button>
+                    <h2 className="font-black text-xl text-slate-700">Buku Panduan</h2>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {TUTORIAL_DATA.map((tut, idx) => (
-                        <PBtn key={tut.id} onClick={() => onSelect(tut)} className={`w-full text-left p-3 rounded-2xl border-2 shadow-sm bg-white flex items-center gap-3 ${tut.color.replace('bg-', 'border-').replace('100', '200')}`}>
+                        <button key={tut.id} onClick={() => onSelect(tut)} className={`w-full text-left p-4 rounded-2xl border-4 shadow-sm btn-push transition-transform bg-white flex items-center gap-4 ${tut.color.replace('bg-', 'border-').replace('100', '200')} active:translate-y-1`}>
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm ${tut.color}`}>{tut.icon}</div>
                             <div>
-                                <h3 className="font-black text-slate-800 text-sm">{idx + 1}. {tut.title}</h3>
-                                <p className="text-xs text-slate-500 font-bold">{tut.steps.length} Langkah</p>
+                                <h3 className="font-black text-slate-800 text-base">{idx + 1}. {tut.title}</h3>
+                                <p className="text-xs text-slate-500 font-bold mt-0.5">{tut.steps.length} Langkah</p>
                             </div>
-                        </PBtn>
+                        </button>
                     ))}
                 </div>
             </div>
@@ -533,28 +725,28 @@
 
             return (
                 <div className="flex flex-col h-full bg-slate-50">
-                    <div className="flex justify-between items-center p-3 bg-white shadow-sm border-b border-slate-100">
-                        <PBtn onClick={onBack} className="flex items-center gap-1 font-bold text-slate-500 text-xs bg-slate-100 px-3 py-2 rounded-xl shadow-[0_2px_0_#cbd5e1]"><IconBack /> Menu</PBtn>
-                        <div className="font-black text-sky-500 text-xs bg-sky-100 px-2 py-1 rounded-lg">{stepIdx + 1}/{topic.steps.length}</div>
-                        <PBtn onClick={onFinish} className="font-bold text-amber-600 text-xs bg-amber-100 px-3 py-2 rounded-xl shadow-[0_2px_0_#fef08a]">Lewati</PBtn>
+                    <div className="flex justify-between items-center p-3 bg-white shadow-sm border-b-2 border-slate-100">
+                        <button onClick={onBack} className="flex items-center gap-1 font-extrabold text-slate-500 bg-slate-100 px-3 py-2 rounded-xl btn-push shadow-[0_2px_0_#cbd5e1] text-xs"><IconBack /> Menu</button>
+                        <div className="font-black text-sky-500 bg-sky-100 px-2 py-0.5 rounded-lg text-sm">{stepIdx + 1}/{topic.steps.length}</div>
+                        <button onClick={onFinish} className="flex items-center gap-1 font-extrabold text-amber-600 bg-amber-100 px-3 py-2 rounded-xl btn-push shadow-[0_2px_0_#fef08a] text-xs">Lewati <IconSkip /></button>
                     </div>
                     
                     <div className="flex-1 flex flex-col p-4 items-center justify-center overflow-y-auto">
-                        <div className="glass-card p-4 rounded-2xl w-full mb-4 text-center shadow-md">
-                            <p className="text-sm font-extrabold text-slate-700">{step.text}</p>
+                        <div className="glass-card p-3 rounded-2xl w-full mb-3 min-h-[80px] flex items-center justify-center text-center shadow-lg border-2 border-white">
+                            <p className="text-sm font-extrabold text-slate-700 leading-relaxed">{step.text}</p>
                         </div>
                         <div className="w-full">
                             <Abacus values={numToAbacusArr(step.val)} theme={theme} highlightCols={step.hl} isReadonly={true} />
                         </div>
                     </div>
 
-                    <div className="p-3 nav-safe bg-white border-t border-slate-100 flex gap-2 mt-auto">
-                        <PBtn onClick={() => setStepIdx(Math.max(0, stepIdx-1))} disabled={stepIdx === 0} className={`py-2 px-4 rounded-xl font-bold flex items-center justify-center ${stepIdx === 0 ? 'bg-slate-100 text-slate-300' : 'bg-slate-200 text-slate-700 shadow-[0_3px_0_#cbd5e1]'}`}>
-                            <IconArrowLeft />
-                        </PBtn>
-                        <PBtn onClick={() => stepIdx < topic.steps.length - 1 ? setStepIdx(stepIdx + 1) : onFinish()} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] flex justify-center items-center gap-1">
-                            {stepIdx === topic.steps.length - 1 ? 'Latihan' : 'Lanjut'} {stepIdx < topic.steps.length - 1 && <IconArrowRight />}
-                        </PBtn>
+                    <div className="p-3 bg-white border-t-2 border-slate-100 flex gap-2 shadow-[0_-10px_20px_rgba(0,0,0,0.03)]">
+                        <button onClick={() => setStepIdx(Math.max(0, stepIdx-1))} disabled={stepIdx === 0} className={`py-2 px-4 rounded-xl font-bold btn-push flex flex-col items-center justify-center gap-0.5 ${stepIdx === 0 ? 'bg-slate-100 text-slate-300 shadow-none' : 'bg-slate-200 text-slate-700 shadow-[0_3px_0_#cbd5e1]'}`}>
+                            <IconArrowLeft /> <span className="text-[10px]">Ulangi</span>
+                        </button>
+                        <button onClick={() => stepIdx < topic.steps.length - 1 ? setStepIdx(stepIdx + 1) : onFinish()} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-base shadow-[0_3px_0_#0ea5e9] btn-push flex justify-center items-center gap-2">
+                            {stepIdx === topic.steps.length - 1 ? 'Mulai Latihan' : 'Berikutnya'} {stepIdx < topic.steps.length - 1 && <IconArrowRight />}
+                        </button>
                     </div>
                 </div>
             );
@@ -569,29 +761,30 @@
 
             const handleCheck = () => {
                 const userAns = abacusValues[0]*100000 + abacusValues[1]*10000 + abacusValues[2]*1000 + abacusValues[3]*100 + abacusValues[4]*10 + abacusValues[5];
-                const isC = userAns === currentQ.expected;
-                setStatus(isC ? 'success' : 'error');
-                if(isC){ setShowHint(false); audioEngine.playCorrect(); } else { audioEngine.playWrong(); }
+                const isCorrect = userAns === currentQ.expected;
+                setStatus(isCorrect ? 'success' : 'error');
+                if(isCorrect) { setShowHint(false); SoundEngine.playCorrect(); }
+                else SoundEngine.playWrong();
             };
 
             return (
                 <div className="flex flex-col h-full bg-slate-50">
-                    <div className="flex justify-between items-center p-3 bg-white shadow-sm border-b border-slate-100">
-                        <div className="font-black text-slate-700 text-sm">Latihan</div>
-                        <div className="font-bold text-xs bg-amber-100 text-amber-600 px-3 py-1 rounded-lg">Soal {qIdx + 1}/{topic.practice.length}</div>
+                    <div className="flex justify-between items-center p-3 bg-white shadow-sm border-b-2 border-slate-100">
+                        <div className="font-black text-slate-700 text-base">Latihan</div>
+                        <div className="font-black bg-amber-100 text-amber-600 px-3 py-1 rounded-lg text-sm">Soal {qIdx + 1}/{topic.practice.length}</div>
                     </div>
                     
-                    <div className="flex-1 p-3 flex flex-col">
-                        <div className="bg-white p-4 rounded-2xl shadow-sm border-2 border-slate-100 text-center mb-3">
-                            <h3 className="text-lg font-black text-slate-800">{currentQ.q}</h3>
-                            {status === 'error' && <div className="mt-2 p-2 bg-rose-100 text-rose-600 rounded-xl text-xs font-bold animate-pop">Belum tepat, coba lagi ya!</div>}
-                            {status === 'success' && <div className="mt-2 p-2 bg-emerald-100 text-emerald-600 rounded-xl text-sm font-black animate-pop">🎉 Hebat!</div>}
+                    <div className="flex-1 overflow-y-auto p-2 flex flex-col">
+                        <div className="bg-white p-3 rounded-2xl shadow-sm border-2 border-slate-100 text-center mb-2">
+                            <h3 className="text-base font-black text-slate-800">{currentQ.q}</h3>
+                            {status === 'error' && <div className="mt-1.5 p-1.5 bg-rose-100 text-rose-600 rounded-lg font-extrabold text-xs animate-pop">Belum tepat, coba lagi ya!</div>}
+                            {status === 'success' && <div className="mt-1.5 p-1.5 bg-emerald-100 text-emerald-600 rounded-lg font-extrabold text-xs animate-pop">🎉 {currentQ.successMsg || 'Hebat! Benar, lanjutkan!'}</div>}
                         </div>
 
                         {showHint && status !== 'success' && (
-                            <div className="mb-3 p-3 bg-amber-50 border-2 border-amber-200 rounded-xl flex items-start gap-2 animate-pop text-xs">
-                                <span className="text-amber-500 bg-amber-100 p-1 rounded-md">💡</span>
-                                <p className="font-bold text-amber-800">{currentQ.hint}</p>
+                            <div className="mb-2 p-2 bg-amber-50 border-2 border-amber-200 rounded-xl flex items-start gap-2 animate-pop">
+                                <div className="text-amber-500 bg-amber-100 p-1 rounded-lg"><IconLightbulb /></div>
+                                <p className="font-bold text-amber-800 text-[11px] leading-relaxed">{currentQ.hint}</p>
                             </div>
                         )}
 
@@ -600,16 +793,16 @@
                         </div>
                     </div>
 
-                    <div className="p-3 nav-safe bg-white border-t border-slate-100 flex gap-2 mt-auto">
+                    <div className="p-3 bg-white rounded-t-[1.5rem] shadow-[0_-5px_15px_rgba(0,0,0,0.03)] border-t border-slate-100 flex gap-2">
                         {status === 'success' ? (
-                            <PBtn onClick={() => qIdx < topic.practice.length - 1 ? (setQIdx(qIdx + 1), setAbacusValues([0,0,0,0,0,0]), setStatus('idle')) : onFinish()} className="flex-1 bg-emerald-400 text-white py-2 rounded-xl font-black text-sm shadow-[0_3px_0_#059669] flex justify-center items-center gap-1">
+                            <button onClick={() => qIdx < topic.practice.length - 1 ? (setQIdx(qIdx + 1), setAbacusValues([0,0,0,0,0,0]), setStatus('idle')) : onFinish()} className="flex-1 bg-emerald-400 text-white py-2 rounded-xl font-black text-sm btn-push shadow-[0_3px_0_#059669] flex justify-center items-center gap-2">
                                 {qIdx === topic.practice.length - 1 ? 'Selesai' : 'Lanjut'} <IconArrowRight />
-                            </PBtn>
+                            </button>
                         ) : (
                             <>
-                                <PBtn onClick={() => setShowHint(true)} className="bg-amber-100 text-amber-600 px-3 py-2 rounded-xl shadow-[0_3px_0_#fcd34d]"><IconLightbulb /></PBtn>
-                                <PBtn onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-slate-100 text-slate-500 px-3 py-2 rounded-xl shadow-[0_3px_0_#cbd5e1]"><IconRefresh /></PBtn>
-                                <PBtn onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-sm shadow-[0_3px_0_#0ea5e9] flex justify-center items-center gap-1"><IconCheck /> CEK</PBtn>
+                                <button onClick={() => setShowHint(true)} className="bg-amber-100 text-amber-600 px-3 py-2 rounded-xl font-bold btn-push shadow-[0_3px_0_#fcd34d] flex items-center justify-center" title="Petunjuk"><IconLightbulb /></button>
+                                <button onClick={() => setAbacusValues([0,0,0,0,0,0])} className="bg-slate-100 text-slate-500 px-3 py-2 rounded-xl font-bold btn-push shadow-[0_3px_0_#cbd5e1] flex items-center justify-center" title="Ulangi Sempoa"><IconRefresh /></button>
+                                <button onClick={handleCheck} className="flex-1 bg-sky-400 text-white py-2 rounded-xl font-black text-sm btn-push shadow-[0_3px_0_#0ea5e9] flex justify-center items-center gap-2"><IconCheck /> CEK</button>
                             </>
                         )}
                     </div>
@@ -620,23 +813,74 @@
         const App = () => {
             const [view, setView] = useState('menu'); 
             const [settings, setSettings] = useState(null);
+            const [history, setHistory] = useState([]);
             const [theme, setTheme] = useState({ bead: 'emerald', board: 'slate' });
             const [activeTutorial, setActiveTutorial] = useState(null);
-            const [isMuted, setIsMuted] = useState(!audioEngine.bgmEnabled);
+            const [showConfirm, setShowConfirm] = useState(false);
+            const [isMuted, setIsMuted] = useState(false);
+
+            useEffect(() => {
+                const saved = localStorage.getItem('soroban_history');
+                if (saved) try { setHistory(JSON.parse(saved)); } catch(e) {}
+
+                const savedTheme = localStorage.getItem('soroban_theme');
+                if (savedTheme) try { setTheme(JSON.parse(savedTheme)); } catch(e) {}
+
+                const savedMute = localStorage.getItem('soroban_mute');
+                if (savedMute !== null) {
+                    setIsMuted(savedMute === 'true');
+                    SoundEngine.isBgmMuted = (savedMute === 'true');
+                }
+            }, []);
+
+            useEffect(() => {
+                const initAudioAndHandleClick = async (e) => {
+                    if (!SoundEngine.initialized) {
+                        await SoundEngine.init();
+                        SoundEngine.setBgmMute(isMuted);
+                    }
+                    if (e.target.closest('button')) SoundEngine.playBtn();
+                };
+                document.addEventListener('pointerdown', initAudioAndHandleClick);
+                return () => document.removeEventListener('pointerdown', initAudioAndHandleClick);
+            }, [isMuted]);
 
             const handleToggleMute = () => {
-                audioEngine.bgmEnabled = !audioEngine.bgmEnabled;
-                setIsMuted(!audioEngine.bgmEnabled);
-                audioEngine.toggleBGM();
+                const newMuted = !isMuted;
+                setIsMuted(newMuted);
+                SoundEngine.setBgmMute(newMuted);
+                localStorage.setItem('soroban_mute', newMuted);
+            };
+
+            const handleUpdateTheme = (key, val) => {
+                const newTheme = { ...theme, [key]: val };
+                setTheme(newTheme);
+                localStorage.setItem('soroban_theme', JSON.stringify(newTheme));
+            };
+
+            const handleSaveHistory = (record) => {
+                const newHistory = [...history, record];
+                if(newHistory.length > 50) newHistory.shift(); 
+                setHistory(newHistory);
+                localStorage.setItem('soroban_history', JSON.stringify(newHistory));
+            };
+
+            const handleClearHistory = () => {
+                setHistory([]);
+                localStorage.removeItem('soroban_history');
+                setShowConfirm(false);
             };
 
             return (
                 <>
-                    {view === 'menu' && <MainMenu onStart={(cfg) => { setSettings(cfg); setView('game'); }} onOpenHistory={() => {}} onOpenTutorial={() => setView('tutorial_menu')} theme={theme} updateTheme={(k,v) => setTheme({...theme, [k]:v})} isMuted={isMuted} toggleMute={handleToggleMute} />}
-                    {view === 'game' && <GameScreen settings={settings} onBack={() => setView('menu')} saveHistory={() => {}} theme={theme} />}
+                    {view === 'menu' && <MainMenu onStart={(cfg) => { setSettings(cfg); setView('game'); }} onOpenHistory={() => setView('history')} onOpenTutorial={() => setView('tutorial_menu')} theme={theme} updateTheme={handleUpdateTheme} isMuted={isMuted} onToggleMute={handleToggleMute} />}
+                    {view === 'game' && <GameScreen settings={settings} onBack={() => setView('menu')} saveHistory={handleSaveHistory} theme={theme} />}
+                    {view === 'history' && <HistoryScreen history={history} onBack={() => setView('menu')} onClear={() => setShowConfirm(true)} />}
                     {view === 'tutorial_menu' && <TutorialMenu onSelect={(topic) => { setActiveTutorial(topic); setView('tutorial_reader'); }} onBack={() => setView('menu')} />}
                     {view === 'tutorial_reader' && <TutorialReader topic={activeTutorial} onFinish={() => setView('tutorial_practice')} onBack={() => setView('tutorial_menu')} theme={theme} />}
                     {view === 'tutorial_practice' && <TutorialPractice topic={activeTutorial} onFinish={() => setView('tutorial_menu')} theme={theme} />}
+                    
+                    <ConfirmDialog isOpen={showConfirm} title="Hapus Riwayat?" message="Semua catatan latihanmu akan hilang. Lanjutkan?" onConfirm={handleClearHistory} onCancel={() => setShowConfirm(false)} />
                 </>
             );
         };
